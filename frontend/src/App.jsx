@@ -315,12 +315,20 @@ export default function App() {
               </h2>
               <p>{new Date(selectedSeq.startTime).toLocaleString()}</p>
               <div className="sequence-summary">
-                <div><span className="dot warned-dot" /> {selectedSeq.preAlarmCities.length} cities warned</div>
-                <div><span className="dot alerted-dot" /> {selectedSeq.realAlarmCities.length} cities alerted</div>
-                <div>
-                  {markers.filter(m => m.kind === 'warned_hit').length} hit after warning &nbsp;·&nbsp;
-                  {markers.filter(m => m.kind === 'surprise').length} surprise alerts
-                </div>
+                {selectedSeq.type === 'PREEMPTIVE_SEQUENCE' ? (
+                  <>
+                    <div><span className="dot warned-dot" /> {selectedSeq.preAlarmCities.length} cities warned</div>
+                    <div><span className="dot alerted-dot" /> {selectedSeq.realAlarmCities.length} cities alerted</div>
+                    <div>
+                      {markers.filter(m => m.kind === 'warned_hit').length} hit after warning &nbsp;·&nbsp;
+                      {markers.filter(m => m.kind === 'surprise').length} surprise alerts
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ fontSize: '1.1rem', fontWeight: 500 }}>
+                    <span className="dot alerted-dot" /> {selectedSeq.realAlarmCities.length} cities with alerts
+                  </div>
+                )}
               </div>
             </div>
           )}
