@@ -163,16 +163,16 @@ export default function App() {
               <h3>Methodology</h3>
               <p>
                 Data is automatically extracted.
-                We parse Pikud HaOref official Telegram channel for early warnings and use Yuval Harpaz's <a href="https://github.com/yuval-harpaz/alarms">alarms</a> project for the alerts data, for that his source identification system is brilliant.
+                I parse Pikud HaOref official Telegram channel for early warnings and use Yuval Harpaz's <a href="https://github.com/yuval-harpaz/alarms">alarms</a> project for the alerts data, for that his source identification system is brilliant.
                 The project is updated every hour, although there might be delays. <strong>For real-time life-saving information, always refer to the official Pikud HaOref app or website.</strong>
               </p>
             </section>
             <section>
               <h3>Project Status</h3>
               <p>
-                It is an alpha version, so feel free to report any issues or suggestions to this email: howthelionroars@protonmail.com
+                It is an alpha version, so feel free to report any issues or suggestions to this email: howthelionroars@protonmail.com.
                 This project is 100% vibecoded, so, well. Don't trust it too much.
-                Also, please never take any decisions based on this project. It can be literally deadly.
+                And <i>please</i> never take any decisions based on this project. It can be literally deadly.
               </p>
             </section>
             <section>
