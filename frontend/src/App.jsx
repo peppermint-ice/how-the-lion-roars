@@ -325,7 +325,7 @@ export default function App() {
                     </div>
                   </>
                 ) : (
-                  <div style={{ fontSize: '1.1rem', fontWeight: 500 }}>
+                  <div>
                     <span className="dot alerted-dot" /> {selectedSeq.realAlarmCities.length} cities with alerts
                   </div>
                 )}
