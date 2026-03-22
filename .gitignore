@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+env/
+.env
+
+# Front-end
+node_modules/
+frontend/node_modules/
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+
+# Ignore massive data files (optional, remove if you want them versioned)
+*.csv
+*.json
+!cities.json
+!package.json
+!frontend/package.json
+!frontend/package-lock.json
