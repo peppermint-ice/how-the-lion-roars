@@ -32,3 +32,5 @@ jobs:
           git add data.json frontend/public/data.json azakot_heb.json azakot_source.csv update_*.json
           git commit -m "Automated data update [skip ci]" || echo "No changes to commit"
           git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
