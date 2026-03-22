@@ -21,13 +21,18 @@ def main():
 
     print("2. Fetching new early warnings from t.me/PikudHaOref_all...")
     try:
-        res = requests.get("https://t.me/s/PikudHaOref_all")
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+        res = requests.get("https://t.me/s/PikudHaOref_all", headers=headers, timeout=15)
         res.raise_for_status()
         soup = BeautifulSoup(res.text, 'html.parser')
         
         # Load existing Telegram dump to append to
         with open('azakot_heb.json', 'r', encoding='utf-8') as f:
             tg_data = json.load(f)
+        
+        # Strip out any improperly timezoned messages that our bot added previously to start fresh
+        # (Native Telegram Desktop dumps have extra fields like 'from_id' or 'from')
+        tg_data['messages'] = [m for m in tg_data.get('messages', []) if 'from' in m]
         
         existing_dates = set(m.get('date') for m in tg_data.get('messages', []))
         max_id = max((m.get('id', 0) for m in tg_data.get('messages', [])), default=0)
@@ -39,7 +44,7 @@ def main():
         while url and not reached_known:
             print(f"   Fetching page: {url}")
             try:
-                res = requests.get(url, timeout=10)
+                res = requests.get(url, headers=headers, timeout=15)
                 res.raise_for_status()
             except Exception as loop_e:
                 print(f"   [!] Connection issue or end of pages during pagination: {loop_e}")
@@ -64,10 +69,13 @@ def main():
                 if not dt_str:
                     continue
                     
-                dt_iso = dt_str.split('+')[0]
-                dt_obj = datetime.datetime.fromisoformat(dt_iso)
+                # Telegram Web gives UTC: e.g. 2026-03-22T00:23:06+00:00
+                dt_obj_utc = datetime.datetime.fromisoformat(dt_str)
+                # Convert to local Israel Time (+2 or +3)
+                dt_local = dt_obj_utc.astimezone()
+                dt_iso = dt_local.replace(tzinfo=None).isoformat()
                 
-                if latest_time and dt_obj <= latest_time:
+                if latest_time and dt_local.replace(tzinfo=None) <= latest_time:
                     reached_known = True
                     
                 if dt_iso in existing_dates:
@@ -110,9 +118,10 @@ def main():
 
     print("3. Fetching latest CSV updates...")
     try:
-        csv_url = "https://raw.githubusercontent.com/yuval-harpaz/alarms/main/data/alarms.csv"
-        r = requests.get(csv_url)
+        csv_url = "https://raw.githubusercontent.com/yuval-harpaz/alarms/master/data/alarms.csv"
+        r = requests.get(csv_url, timeout=30)
         r.raise_for_status()
+
         with open('azakot_source.csv', 'w', encoding='utf-8') as f:
             f.write(r.text)
         print("   Updated azakot_source.csv with latest alarms.")

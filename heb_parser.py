@@ -173,6 +173,11 @@ def load_csv_alarms(filepath, by_he, cutoff_dt):
             origin    = row.get('origin', '').strip()
             city_name = row.get('cities', '').strip()
 
+            # Rule 1: Find the last line that has ALL fields filled. 
+            # If any are empty (e.g. untagged realtime alarms), discard them.
+            if not origin or not city_name or not ev_id or not row.get('threat', '').strip() or not row.get('description', '').strip():
+                continue
+
             key = (ev_id, time_str)   # composite key handles ID reuse
             if key not in alarm_map:
                 alarm_map[key] = {
@@ -334,19 +339,21 @@ if __name__ == '__main__':
     by_he = load_cities()
     print(f"Loaded {len(by_he)} Hebrew city names.")
 
-    # Cutoff = last message time in Telegram dump
-    cutoff = get_telegram_cutoff('azakot_heb.json')
-    print(f"Telegram cutoff: {cutoff}")
-
-    # Pre-alarms from Telegram (2026 only)
-    all_pre = extract_pre_alarms('azakot_heb.json', by_he)
-    pre_alarms = [p for p in all_pre if p['time'].year == 2026 and p['time'] <= cutoff]
-    print(f"Pre-alarms (2026, ≤ cutoff): {len(pre_alarms)}")
-
-    # Real alarms from CSV (≤ cutoff, 2026 only)
-    all_csv = load_csv_alarms('azakot_source.csv', by_he, cutoff)
+    # Load Real alarms from CSV first to find the true valid cutoff
+    all_csv = load_csv_alarms('azakot_source.csv', by_he, cutoff_dt=datetime.max)
     csv_alarms = [a for a in all_csv if a['time'].year == 2026]
-    print(f"CSV alarm events (2026, ≤ cutoff): {len(csv_alarms)}")
+    
+    if csv_alarms:
+        csv_max_time = max(a['time'] for a in csv_alarms)
+    else:
+        csv_max_time = datetime.max
+        
+    print(f"CSV alarm events (2026): {len(csv_alarms)}, Max CSV Date: {csv_max_time}")
+
+    # Pre-alarms from Telegram (2026 only, strictly capped to CSV's latest update)
+    all_pre = extract_pre_alarms('azakot_heb.json', by_he)
+    pre_alarms = [p for p in all_pre if p['time'].year == 2026 and p['time'] <= csv_max_time]
+    print(f"Pre-alarms (2026, <= CSV cutoff): {len(pre_alarms)}")
 
     origin_counts = {}
     for a in csv_alarms:
@@ -355,17 +362,8 @@ if __name__ == '__main__':
 
     sequences = build_sequences(pre_alarms, csv_alarms)
 
-    n_pre = sum(1 for s in sequences if s['type'] == 'PREEMPTIVE_SEQUENCE')
-    n_std = sum(1 for s in sequences if s['type'] == 'STANDALONE_ALARM')
-    print(f"\nSequences: {len(sequences)} ({n_pre} preemptive, {n_std} standalone)")
-
-    # Sample
-    sample = next((s for s in sequences if s['type'] == 'PREEMPTIVE_SEQUENCE' and s['realAlarmCities']), None)
-    if sample:
-        print(f"\nSample preemptive seq (id={sample['id']}, {sample['startTime']}):")
-        print(f"  Pre-alarm cities ({len(sample['preAlarmCities'])}): {[c['he'] for c in sample['preAlarmCities'][:5]]}")
-        print(f"  Real alarm cities ({len(sample['realAlarmCities'])}): {[c['he'] for c in sample['realAlarmCities'][:5]]}")
-
+    print(f"Sequences: {len(sequences)} ({len([s for s in sequences if s['type']=='PREEMPTIVE_SEQUENCE'])} preemptive, {len([s for s in sequences if s['type']=='STANDALONE_ALARM'])} standalone)")
+    
     with open('data.json', 'w', encoding='utf-8') as f:
-        json.dump(sequences, f, ensure_ascii=False, indent=2)
+        json.dump(sequences, f, ensure_ascii=False, indent=2, default=str)
     print(f"\nSaved {len(sequences)} sequences to data.json")
