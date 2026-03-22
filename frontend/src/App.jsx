@@ -170,7 +170,7 @@ export default function App() {
             <section>
               <h3>Project Status</h3>
               <p>
-                It is an alpha version, so feel free to report any issues or suggestions to my email: [d.usenko@hotmail.com]
+                It is an alpha version, so feel free to report any issues or suggestions to this email: howthelionroars@protonmail.com
                 This project is 100% vibecoded, so, well. Don't trust it too much.
                 Also, please never take any decisions based on this project. It can be literally deadly.
               </p>
