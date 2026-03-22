@@ -4,3 +4,4 @@ matplotlib
 geopandas
 folium
 openpyxl
+beautifulsoup4
