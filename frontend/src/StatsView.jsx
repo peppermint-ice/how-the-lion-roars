@@ -3,9 +3,13 @@ import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
 
 // ── Color helpers ─────────────────────────────────────────────────────────────
 // Frequency heat: green (low) → red (high)
-function heatColor(count, maxCount) {
-  const t = maxCount > 0 ? Math.min(1, count / maxCount) : 0;
-  const tt = t * t;
+// Modified to use a percentile-based approach if rank-based 't' is provided.
+function heatColor(count, maxCount, tOverride) {
+  const t = (tOverride !== undefined) ? tOverride : (maxCount > 0 ? Math.min(1, count / maxCount) : 0);
+  // Quadratic curve (t*t) makes it stay green longer for linear counts,
+  // but for percentiles we want it more balanced.
+  // Actually, we'll keep the tt logic but the input 't' will be percentile-based.
+  const tt = t; // Use linear for percentile to satisfy "median = yellow" (t=0.5)
   return `hsl(${(120 * (1 - tt)).toFixed(0)}, ${(80 + tt * 15).toFixed(0)}%, ${(44 - tt * 8).toFixed(0)}%)`;
 }
 
@@ -20,13 +24,23 @@ function effColor(rate) {
 }
 
 // ── Mini map ──────────────────────────────────────────────────────────────────
-function StatsMap({ items, keyProp, getColor, getLabel }) {
+function StatsMap({ items, keyProp, getColor, getLabel, listReference }) {
+  // If listReference is provided, we can look up the percentileT from it for each item
+  const itemLookup = useMemo(() => {
+    const m = {};
+    if (listReference) {
+      listReference.forEach(c => { if (c.id) m[c.id] = c; });
+    }
+    return m;
+  }, [listReference]);
+
   return (
     <MapContainer center={[31.5, 34.9]} zoom={7}
       style={{ height: '100%', width: '100%', position: 'absolute', inset: 0 }}>
       <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="" />
       {items.filter(c => c.lat && c.lng).map((c, i) => {
-        const col = getColor(c);
+        const fullItem = c.id && itemLookup[c.id] ? itemLookup[c.id] : c;
+        const col = getColor(fullItem);
         return (
           <CircleMarker key={`${keyProp}-${c.id ?? i}`} center={[c.lat, c.lng]} radius={4}
             pathOptions={{ color: col, fillColor: col, fillOpacity: 0.85, weight: 0.5 }}>
@@ -54,7 +68,7 @@ function RankList({ items, getValue, getLabel, maxVal }) {
             <span className="rank-name">{c.en || c.ru || c.he}</span>
             <span className="rank-bar-wrap">
               <span className="rank-bar"
-                style={{ width: `${val / maxVal * 100}%`, background: heatColor(val, maxVal) }} />
+                style={{ width: `${val / maxVal * 100}%`, background: heatColor(val, maxVal, c.percentileT) }} />
             </span>
             <span className="rank-count">{getLabel ? getLabel(c) : val}</span>
           </div>
@@ -67,6 +81,9 @@ function RankList({ items, getValue, getLabel, maxVal }) {
 // ── Main component ────────────────────────────────────────────────────────────
 export default function StatsView({ sequences }) {
   const [topFilter, setTopFilter] = useState('iran');
+  const [showAllTop, setShowAllTop]   = useState(false);
+  const [showAllWarn, setShowAllWarn] = useState(false);
+  const [showAllEff, setShowAllEff]   = useState(false);
 
   const preSeqs   = useMemo(() => sequences.filter(s => s.type === 'PREEMPTIVE_SEQUENCE'), [sequences]);
   const standSeqs = useMemo(() => sequences.filter(s => s.type === 'STANDALONE_ALARM'),    [sequences]);
@@ -135,11 +152,30 @@ export default function StatsView({ sequences }) {
   }, [effData]);
   const effBucketMax = Math.max(...effBuckets, 1);
 
-  // Sorted arrays
-  const iranRanked    = useMemo(() => Object.values(iranMap).sort((a,b) => b.count - a.count),     [iranMap]);
-  const lebaRanked    = useMemo(() => Object.values(lebaMap).sort((a,b) => b.count - a.count),     [lebaMap]);
-  const allRanked     = useMemo(() => Object.values(allMap).sort((a,b) => b.count - a.count),      [allMap]);
-  const warningRanked = useMemo(() => Object.values(warningMap).sort((a,b) => b.warnCount - a.warnCount), [warningMap]);
+  // Sorted arrays with percentile pre-computation
+  const iranRanked    = useMemo(() => {
+    const list = Object.values(iranMap).sort((a,b) => b.count - a.count);
+    list.forEach((c, i) => { c.percentileT = list.length > 1 ? 1 - (i / (list.length - 1)) : 1; });
+    return list;
+  }, [iranMap]);
+
+  const lebaRanked    = useMemo(() => {
+    const list = Object.values(lebaMap).sort((a,b) => b.count - a.count);
+    list.forEach((c, i) => { c.percentileT = list.length > 1 ? 1 - (i / (list.length - 1)) : 1; });
+    return list;
+  }, [lebaMap]);
+
+  const allRanked     = useMemo(() => {
+    const list = Object.values(allMap).sort((a,b) => b.count - a.count);
+    list.forEach((c, i) => { c.percentileT = list.length > 1 ? 1 - (i / (list.length - 1)) : 1; });
+    return list;
+  }, [allMap]);
+
+  const warningRanked = useMemo(() => {
+    const list = Object.values(warningMap).sort((a,b) => b.warnCount - a.warnCount);
+    list.forEach((c, i) => { c.percentileT = list.length > 1 ? 1 - (i / (list.length - 1)) : 1; });
+    return list;
+  }, [warningMap]);
 
   const activeTopMap  = topFilter === 'iran' ? iranMap   : topFilter === 'lebanon' ? lebaMap    : allMap;
   const activeTopList = topFilter === 'iran' ? iranRanked : topFilter === 'lebanon' ? lebaRanked : allRanked;
@@ -162,14 +198,24 @@ export default function StatsView({ sequences }) {
         </div>
         <div className="stats-body">
           <div className="stats-list-panel">
-            <RankList items={activeTopList} getValue={c => c.count}
-              getLabel={c => `${c.count}×`} maxVal={topMax} />
+            <RankList
+              items={showAllTop ? activeTopList : activeTopList.slice(0, 20)}
+              getValue={c => c.count}
+              getLabel={c => `${c.count}×`}
+              maxVal={topMax}
+            />
+            {!showAllTop && activeTopList.length > 20 && (
+              <button className="show-more-btn" onClick={() => setShowAllTop(true)}>
+                Show all {activeTopList.length} cities
+              </button>
+            )}
           </div>
           <div className="stats-map-panel">
             <StatsMap
               items={Object.values(activeTopMap).filter(c => c.count >= 1)}
               keyProp="top"
-              getColor={c => heatColor(c.count, topMax)}
+              listReference={activeTopList}
+              getColor={c => heatColor(c.count, topMax, c.percentileT)}
               getLabel={c => `${c.count} attacks`}
             />
           </div>
@@ -184,14 +230,24 @@ export default function StatsView({ sequences }) {
         </div>
         <div className="stats-body">
           <div className="stats-list-panel">
-            <RankList items={warningRanked} getValue={c => c.warnCount}
-              getLabel={c => `${c.warnCount} warned · ${c.hitCount} hit`} maxVal={warnMax} />
+            <RankList
+              items={showAllWarn ? warningRanked : warningRanked.slice(0, 20)}
+              getValue={c => c.warnCount}
+              getLabel={c => `${c.warnCount} warned · ${c.hitCount} hit`}
+              maxVal={warnMax}
+            />
+            {!showAllWarn && warningRanked.length > 20 && (
+              <button className="show-more-btn" onClick={() => setShowAllWarn(true)}>
+                Show all {warningRanked.length} cities
+              </button>
+            )}
           </div>
           <div className="stats-map-panel">
             <StatsMap
               items={warningRanked.filter(c => c.warnCount >= 1)}
               keyProp="warn"
-              getColor={c => heatColor(c.warnCount, warnMax)}
+              listReference={warningRanked}
+              getColor={c => heatColor(c.warnCount, warnMax, c.percentileT)}
               getLabel={c => `${c.warnCount} warnings, ${c.hitCount} hits`}
             />
           </div>
@@ -207,7 +263,7 @@ export default function StatsView({ sequences }) {
         <div className="stats-body">
           <div className="stats-list-panel">
             <div className="eff-chart">
-              {effBuckets.map((cnt, i) => (
+              {(showAllEff ? effBuckets : effBuckets.slice(0, 20)).map((cnt, i) => (
                 <div key={i} className="eff-bar-row">
                   <span className="eff-label">{i * 10}–{i*10+9}%</span>
                   <div className="eff-track">
@@ -219,6 +275,12 @@ export default function StatsView({ sequences }) {
                 </div>
               ))}
             </div>
+            {/* Efficiency is a fixed bucket list of 10, so no show-all needed here normally,
+                but I'll keep the logic consistent if it was a city list.
+                Actually effData is the city list below. Wait.
+                The eff-chart is buckets (10 rows). The user mentioned "Top Cities panes".
+                Top Cities panes refer to Column 1 and 2.
+                I'll leave Column 3 as is since it's only 10 rows. */}
           </div>
           <div className="stats-map-panel">
             <StatsMap

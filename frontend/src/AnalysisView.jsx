@@ -197,38 +197,37 @@ export default function AnalysisView({ sequences, initialCity, onBack,
           )}
         </div>
 
-        {/* Target info */}
+        {/* Target info and trivia group for easier mobile positioning */}
         {targetCity && (
-          <div className="target-info">
-            <div className="target-name">
-              <span className="blue-dot" />
-              <span>{targetCity.en || targetCity.ru || targetCity.he}</span>
-              <span className="city-he-small">{targetCity.he}</span>
+          <div className="analysis-info-group">
+            <div className="target-info">
+              <div className="target-name">
+                <span className="blue-dot" />
+                <span>{targetCity.en || targetCity.ru || targetCity.he}</span>
+                <span className="city-he-small">{targetCity.he}</span>
+              </div>
+              {targetCity.ru && targetCity.en && <div className="target-ru">{targetCity.ru}</div>}
+              <div className="target-stats">
+                Mentioned in <strong>{hitCount}</strong> attacks from Iran ·{' '}
+                <strong>{Object.keys(visible).length}</strong> cities shown at ≥{Math.round(threshold * 100)}%
+              </div>
             </div>
-            {targetCity.ru && targetCity.en && <div className="target-ru">{targetCity.ru}</div>}
-            <div className="target-stats">
-              Mentioned in <strong>{hitCount}</strong> attacks from Iran ·{' '}
-              <strong>{Object.keys(visible).length}</strong> cities shown at ≥{Math.round(threshold * 100)}%
-            </div>
-          </div>
-        )}
 
-        {/* City trivia */}
-        {targetCity && (
-          <div className="city-trivia">
-            <div className="trivia-row">
-              <span className="trivia-label">Alerted</span>
-              <span className="trivia-value">{hitCount} times</span>
-            </div>
-            <div className="trivia-row">
-              <span className="trivia-label">Early warnings</span>
-              <span className="trivia-value">{earlyAlarmCount}</span>
-            </div>
-            <div className="trivia-row">
-              <span className="trivia-label">Warnings → alarm</span>
-              <span className="trivia-value trivia-pct" style={{ color: pctHit >= 50 ? '#f87171' : '#a3e635' }}>
-                {pctHit}%
-              </span>
+            <div className="city-trivia">
+              <div className="trivia-row">
+                <span className="trivia-label">Alerted</span>
+                <span className="trivia-value">{hitCount} times</span>
+              </div>
+              <div className="trivia-row">
+                <span className="trivia-label">Early warnings</span>
+                <span className="trivia-value">{earlyAlarmCount}</span>
+              </div>
+              <div className="trivia-row">
+                <span className="trivia-label">Warnings → alarm</span>
+                <span className="trivia-value trivia-pct" style={{ color: pctHit >= 50 ? '#f87171' : '#a3e635' }}>
+                  {pctHit}%
+                </span>
+              </div>
             </div>
           </div>
         )}

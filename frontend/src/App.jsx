@@ -54,6 +54,7 @@ export default function App() {
   const [hideStandalone, setHideStandalone] = useState(false);
   const [activeView, setActiveView] = useState('history');
   const [analysisCity, setAnalysisCity] = useState(null);
+  const [visibleCount, setVisibleCount] = useState(10);
 
   // ── Shared polygon state ──────────────────────────────────────────────────
   const [polygonMode, setPolygonMode] = useState(false);
@@ -93,6 +94,7 @@ export default function App() {
   const visibleSequences = hideStandalone
     ? sequences.filter(s => s.type === 'PREEMPTIVE_SEQUENCE')
     : sequences;
+  const pagedSequences = visibleSequences.slice(0, visibleCount);
 
   return (
     <div className="app-container">
@@ -182,9 +184,9 @@ export default function App() {
                 {hideStandalone ? '⚡ Preemptive only' : '⚡ Hide standalone'}
               </button>
             </div>
-            {visibleSequences.map((seq, i) => {
+            {pagedSequences.map((seq, i) => {
               const thisDay = new Date(seq.startTime).toDateString();
-              const prevDay = i > 0 ? new Date(visibleSequences[i-1].startTime).toDateString() : null;
+              const prevDay = i > 0 ? new Date(pagedSequences[i-1].startTime).toDateString() : null;
               return (
                 <React.Fragment key={seq.id}>
                   {thisDay !== prevDay && (
@@ -209,6 +211,15 @@ export default function App() {
                 </React.Fragment>
               );
             })}
+
+            {visibleCount < visibleSequences.length && (
+              <button
+                className="show-more-btn"
+                onClick={() => setVisibleCount(prev => prev + 10)}
+              >
+                Show 10 more alerts ({visibleSequences.length - visibleCount} remaining)
+              </button>
+            )}
           </div>
         </div>
 
