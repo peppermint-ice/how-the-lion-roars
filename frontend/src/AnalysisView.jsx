@@ -161,8 +161,8 @@ export default function AnalysisView({ sequences, cities, initialCity, onBack,
           {onBack && <button className="back-btn" onClick={onBack}>← History</button>}
         </div>
         <p className="analysis-desc">
-          Select a city to see which early-warning cities correlate with its actual alerts.
-          Only preemptive sequences counted.
+          Select a city and see how the early warnings in other places correlate with actual alerts in it.
+          Obviously, the closer the cities are to each other, the higher the correlation. But not always.
         </p>
 
         {/* Search box */}
