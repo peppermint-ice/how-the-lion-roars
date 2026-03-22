@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Polygon, Popup } from 'react-leaflet';
 
 // ── Color helpers ─────────────────────────────────────────────────────────────
 // Frequency heat: green (low) → red (high)
@@ -24,7 +24,7 @@ function effColor(rate) {
 }
 
 // ── Mini map ──────────────────────────────────────────────────────────────────
-function StatsMap({ items, keyProp, getColor, getLabel, listReference }) {
+function StatsMap({ items, keyProp, getColor, getLabel, listReference, polygons }) {
   // If listReference is provided, we can look up the percentileT from it for each item
   const itemLookup = useMemo(() => {
     const m = {};
@@ -38,17 +38,22 @@ function StatsMap({ items, keyProp, getColor, getLabel, listReference }) {
     <MapContainer center={[31.5, 34.9]} zoom={7}
       style={{ height: '100%', width: '100%', position: 'absolute', inset: 0 }}>
       <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="" />
-      {items.filter(c => c.lat && c.lng).map((c, i) => {
+      {items.map((c, i) => {
+        const poly = polygons && polygons[String(c.id)];
+        if (!poly) return null;
         const col = getColor(c);
         return (
-          <CircleMarker key={`${keyProp}-${c.id ?? i}`} center={[c.lat, c.lng]} radius={4}
-            pathOptions={{ color: col, fillColor: col, fillOpacity: 0.85, weight: 0.5 }}>
+          <Polygon
+            key={`${keyProp}-${c.id ?? i}`}
+            positions={poly}
+            pathOptions={{ color: col, fillColor: col, fillOpacity: 0.6, weight: 1 }}
+          >
             <Popup>
               <strong>{c.en || c.ru || c.he}</strong>
               {c.he && <><br /><span style={{ color: '#888' }}>{c.he}</span></>}
               <br />{getLabel(c)}
             </Popup>
-          </CircleMarker>
+          </Polygon>
         );
       })}
     </MapContainer>
@@ -78,7 +83,7 @@ function RankList({ items, getValue, getLabel, maxVal }) {
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export default function StatsView({ sequences, cities }) {
+export default function StatsView({ sequences, cities, polygons }) {
   const [topFilter, setTopFilter] = useState('iran');
   const [showAllTop, setShowAllTop]   = useState(false);
   const [showAllWarn, setShowAllWarn] = useState(false);
@@ -214,6 +219,7 @@ export default function StatsView({ sequences, cities }) {
               listReference={activeTopList}
               getColor={c => heatColor(c.count, topMax, c.percentileT)}
               getLabel={c => `${c.count} attacks`}
+              polygons={polygons}
             />
           </div>
         </div>
@@ -246,6 +252,7 @@ export default function StatsView({ sequences, cities }) {
               listReference={warningRanked}
               getColor={c => heatColor(c.warnCount, warnMax, c.percentileT)}
               getLabel={c => `${c.warnCount} warnings, ${c.hitCount} hits`}
+              polygons={polygons}
             />
           </div>
         </div>
@@ -285,6 +292,7 @@ export default function StatsView({ sequences, cities }) {
               keyProp="eff"
               getColor={c => effColor(c.rate)}
               getLabel={c => `${Math.round(c.rate * 100)}% efficiency (${c.hitCount}/${c.warnCount})`}
+              polygons={polygons}
             />
           </div>
         </div>

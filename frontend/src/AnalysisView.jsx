@@ -64,7 +64,7 @@ function computeCorrelations(targetId, sequences) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function AnalysisView({ sequences, cities, initialCity, onBack,
-                                       polygonMode, setPolygonMode, polygons, polyLoading }) {
+                                       polygons, polyLoading }) {
   const [query, setQuery]             = useState(initialCity ? (initialCity.en || initialCity.ru || initialCity.he) : '');
   const [targetCity, setTargetCity]   = useState(initialCity || null);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -238,21 +238,9 @@ export default function AnalysisView({ sequences, cities, initialCity, onBack,
           <div className="threshold-ticks"><span>10%</span><span>100%</span></div>
         </div>
 
-        {/* Mode toggle */}
-        <div className="mode-toggle-row">
-          <span className="mode-label">Display mode</span>
-          <div className="mode-toggle-btns">
-            <button className={`mode-btn ${!polygonMode ? 'active' : ''}`} onClick={() => setPolygonMode(false)}>
-              ● Points
-            </button>
-            <button className={`mode-btn ${polygonMode ? 'active' : ''}`} onClick={() => setPolygonMode(true)}>
-              ▭ Polygons{polyLoading ? ' …' : ''}
-            </button>
-          </div>
-        </div>
-        {polygonMode && !polygons && !polyLoading && (
+        {!polygons && !polyLoading && (
           <div className="zones-warning">
-            ⚠ No polygon file. Run <code>python fetch_zones.py</code> first.
+            ⚠ No polygon data available.
           </div>
         )}
 
@@ -283,8 +271,8 @@ export default function AnalysisView({ sequences, cities, initialCity, onBack,
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           />
 
-          {/* Polygon mode: target polygon + correlated polygons */}
-          {polygonMode && polygons && targetCity && (() => {
+          {/* Polygons ── */}
+          {polygons && targetCity && (() => {
             const targetKey = String(targetCity.id);
             return (
               <>
@@ -297,7 +285,6 @@ export default function AnalysisView({ sequences, cities, initialCity, onBack,
                 )}
                 {Object.entries(visible).map(([id, score]) => {
                   if (!(id in polygons)) return null;
-                  const city = allCities.find(c => String(c.id) === id);
                   return (
                     <Polygon
                       key={`poly-${id}`}
@@ -317,29 +304,6 @@ export default function AnalysisView({ sequences, cities, initialCity, onBack,
               </>
             );
           })()}
-
-          {/* Point mode */}
-          {!polygonMode && markers.map((m, i) => (
-            <CircleMarker
-              key={`pt-${m.id}-${i}`}
-              center={[m.lat, m.lng]}
-              radius={m.kind === 'target' ? 10 : 6}
-              pathOptions={
-                m.kind === 'target'
-                  ? { color: '#1d4ed8', fillColor: '#3b82f6', fillOpacity: 1, weight: 2.5 }
-                  : { color: scoreColor(m.score, 0.10), fillColor: scoreColor(m.score, 0.10), fillOpacity: 0.85, weight: 1 }
-              }
-            >
-              <Popup>
-                <strong>{m.en || m.ru || m.he}</strong>
-                {m.ru && <><br />{m.ru}</>}
-                <br /><span style={{ color: '#888' }}>{m.he}</span>
-                {m.kind === 'target'
-                  ? <><br /><em>Selected city (hit {hitCount}×)</em></>
-                  : <><br /><em>{(m.score * 100).toFixed(0)}% co-warning</em></>}
-              </Popup>
-            </CircleMarker>
-          ))}
 
           <MapFitter markers={markers} />
         </MapContainer>

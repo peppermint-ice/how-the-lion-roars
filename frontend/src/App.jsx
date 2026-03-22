@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { MapContainer, TileLayer, CircleMarker, Polygon, Popup, useMap } from 'react-leaflet';
-import { AlertCircle, BarChart2, LayoutDashboard } from 'lucide-react';
+import { AlertCircle, BarChart2, LayoutDashboard, Info } from 'lucide-react';
 import AnalysisView from './AnalysisView.jsx';
 import StatsView from './StatsView.jsx';
 
@@ -65,19 +65,18 @@ export default function App() {
   const [visibleCount, setVisibleCount] = useState(10);
 
   // ── Shared polygon state ──────────────────────────────────────────────────
-  const [polygonMode, setPolygonMode] = useState(false);
   const [polygons, setPolygons]       = useState(null);   // {id: [[lat,lng],...]}
   const [polyLoading, setPolyLoading] = useState(false);
 
-  // Load once when polygon mode is first enabled
+  // Load once
   useEffect(() => {
-    if (!polygonMode || polygons || polyLoading) return;
+    if (polygons || polyLoading) return;
     setPolyLoading(true);
     fetch('/polygons.json')
       .then(r => { if (!r.ok) throw new Error(); return r.json(); })
       .then(d => { setPolygons(d); setPolyLoading(false); })
       .catch(() => setPolyLoading(false));
-  }, [polygonMode]);
+  }, []);
 
   const goToAnalysis = city => { setAnalysisCity(city); setActiveView('analysis'); };
 
@@ -114,7 +113,7 @@ export default function App() {
   return (
     <div className="app-container">
       <header>
-        <h1><AlertCircle size={22} /> Azakot Analysis 2026</h1>
+        <h1>How The Lion Roars</h1>
         <nav className="header-nav">
           <button
             className={`nav-btn ${activeView === 'history' ? 'active' : ''}`}
@@ -134,25 +133,58 @@ export default function App() {
           >
             <LayoutDashboard size={14} /> Statistics
           </button>
+          <button
+            className={`nav-btn ${activeView === 'about' ? 'active' : ''}`}
+            onClick={() => setActiveView('about')}
+          >
+            <Info size={14} /> About
+          </button>
         </nav>
         <div className="header-info">
-          <span>{sequences.length} sequences · {nPre} preemptive · {nStd} standalone</span>
+          <span>{sequences.length} attacks · {nPre} early warnings · {nStd} unexpected</span>
         </div>
       </header>
 
       {activeView === 'stats' ? (
-        <StatsView sequences={sequences} cities={cities} />
+        <StatsView sequences={sequences} cities={cities} polygons={polygons} />
       ) : activeView === 'analysis' ? (
         <AnalysisView
           sequences={sequences}
           cities={cities}
           initialCity={analysisCity}
           onBack={() => setActiveView('history')}
-          polygonMode={polygonMode}
-          setPolygonMode={setPolygonMode}
           polygons={polygons}
           polyLoading={polyLoading}
         />
+      ) : activeView === 'about' ? (
+        <div className="about-container">
+          <div className="about-card">
+            <section>
+              <h3>Methodology</h3>
+              <p>
+                Data is automatically extracted.
+                We parse Pikud HaOref official Telegram channel for early warnings and use Yuval Harpaz's <a href="https://github.com/yuval-harpaz/alarms">alarms</a> project for the alerts data, for that his source identification system is brilliant.
+                The project is updated every hour, although there might be delays. <strong>For real-time life-saving information, always refer to the official Pikud HaOref app or website.</strong>
+              </p>
+            </section>
+            <section>
+              <h3>Project Status</h3>
+              <p>
+                It is an alpha version, so feel free to report any issues or suggestions to my email: [d.usenko@hotmail.com]
+                This project is 100% vibecoded, so, well. Don't trust it too much.
+                Also, please never take any decisions based on this project. It can be literally deadly.
+              </p>
+            </section>
+            <section>
+              <h3>Credits</h3>
+              <p>
+                Created by <strong>Dmitrii Usenko</strong>, 2026.<br />
+                If you like me and speak Russian, you can follow me on Telegram: <a href="https://t.me/zachav" target="_blank" rel="noopener noreferrer">Ад, Израиль и помидоры черри</a>.
+                Special thanks to my friend <strong>Grisha</strong> for the original idea behind this project.
+              </p>
+            </section>
+          </div>
+        </div>
       ) : (
       <main>
         {/* ── Sidebar ─────────────────────────────────────────────────────── */}
@@ -166,23 +198,14 @@ export default function App() {
             ))}
           </div>
 
-          {/* Mode toggle — same as Analysis view */}
-          <div className="mode-toggle-row">
-            <span className="mode-label">Display mode</span>
-            <div className="mode-toggle-btns">
-              <button
-                className={`mode-btn ${!polygonMode ? 'active' : ''}`}
-                onClick={() => setPolygonMode(false)}
-              >● Points</button>
-              <button
-                className={`mode-btn ${polygonMode ? 'active' : ''}`}
-                onClick={() => setPolygonMode(true)}
-              >▭ Polygons{polyLoading ? ' …' : ''}</button>
-            </div>
-          </div>
-          {polygonMode && !polygons && !polyLoading && (
+          {polyLoading && (
             <div className="zones-warning">
-              ⚠ Run <code>python fetch_zones.py</code> to download polygon data.
+              ⌛ Loading map zones...
+            </div>
+          )}
+          {!polygons && !polyLoading && (
+            <div className="zones-warning">
+              ⚠ No polygon data available.
             </div>
           )}
 
@@ -252,8 +275,8 @@ export default function App() {
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             />
 
-            {/* ── Polygon mode ── */}
-            {polygonMode && polygons && markers.map((m, i) => {
+            {/* ── Polygons ── */}
+            {polygons && markers.map((m, i) => {
               const poly = polygons[String(m.id)];
               if (!poly) return null;
               const style = DOT_COLORS[m.kind];
@@ -278,34 +301,6 @@ export default function App() {
                       onClick={() => goToAnalysis(m)}>🔎 Analyze this city</span>
                   </Popup>
                 </Polygon>
-              );
-            })}
-
-            {/* ── Point mode ── */}
-            {!polygonMode && markers.map((m, i) => {
-              const style = DOT_COLORS[m.kind];
-              return (
-                <CircleMarker
-                  key={`${m.id}-${i}`}
-                  center={[m.lat, m.lng]}
-                  radius={m.kind === 'warned_only' ? 5 : 7}
-                  pathOptions={{
-                    color: style.color,
-                    fillColor: style.fill,
-                    fillOpacity: 0.85,
-                    weight: 1,
-                  }}
-                  eventHandlers={{ click: () => goToAnalysis(m) }}
-                >
-                  <Popup>
-                    <strong>{m.en || m.ru || m.he}</strong><br />
-                    {m.ru && <span>{m.ru}<br /></span>}
-                    <span style={{ color: '#888' }}>{m.he}</span><br />
-                    <em>{style.label}</em><br />
-                    <span style={{ fontSize: '0.75em', color: '#3b82f6', cursor: 'pointer' }}
-                      onClick={() => goToAnalysis(m)}>🔎 Analyze this city</span>
-                  </Popup>
-                </CircleMarker>
               );
             })}
 

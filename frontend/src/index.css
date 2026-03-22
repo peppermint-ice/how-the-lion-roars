@@ -607,3 +607,62 @@ main { flex: 1; display: flex; overflow: hidden; }
     padding: 0.15rem 0.5rem;
   }
 }
+
+/* --- About View --- */
+.about-container {
+  flex: 1;
+  padding: 40px 20px;
+  overflow-y: auto;
+  display: flex;
+  justify-content: center;
+  background: var(--bg-main);
+}
+
+.about-card {
+  max-width: 800px;
+  width: 100%;
+  background: var(--bg-sidebar);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 40px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+
+.about-card h2 {
+  font-size: 2rem;
+  margin-bottom: 30px;
+  background: linear-gradient(135deg, #fff 0%, #888 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.about-card section {
+  margin-bottom: 30px;
+}
+
+.about-card h3 {
+  color: var(--accent);
+  margin-bottom: 12px;
+  font-size: 1.2rem;
+}
+
+.about-card p {
+  line-height: 1.6;
+  color: #ccc;
+  margin-bottom: 10px;
+}
+
+.about-card a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.about-card a:hover {
+  text-decoration: underline;
+}
+
+.about-card strong {
+  color: #fff;
+}
