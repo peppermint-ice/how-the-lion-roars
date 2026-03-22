@@ -40,24 +40,22 @@ function scoreColor(score, threshold) {
 }
 
 // ── City index ────────────────────────────────────────────────────────────────
-function buildCityIndex(sequences) {
-  const m = {};
-  sequences.filter(s => s.type === 'PREEMPTIVE_SEQUENCE').forEach(seq => {
-    [...seq.preAlarmCities, ...seq.realAlarmCities].forEach(c => {
-      if (c.id && !m[c.id]) m[c.id] = c;
-    });
-  });
-  return Object.values(m).filter(c => c.lat && c.lng);
+function buildCityIndex(sequences, cities) {
+  if (!cities) return [];
+  const s = new Set();
+  sequences.filter(seq => seq.type === 'PREEMPTIVE_SEQUENCE')
+           .forEach(seq => seq.realAlarmCities.forEach(id => s.add(id)));
+  return Object.values(cities).filter(c => s.has(c.id) && c.lat && c.lng);
 }
 
 // ── Correlation computation ───────────────────────────────────────────────────
 function computeCorrelations(targetId, sequences) {
   const pre = sequences.filter(s => s.type === 'PREEMPTIVE_SEQUENCE');
-  const hits = pre.filter(s => s.realAlarmCities.some(c => c.id === targetId));
+  const hits = pre.filter(s => s.realAlarmCities.includes(targetId));
   if (!hits.length) return {};
   const counts = {};
-  hits.forEach(seq => seq.preAlarmCities.forEach(c => {
-    if (c.id !== targetId) counts[c.id] = (counts[c.id] || 0) + 1;
+  hits.forEach(seq => seq.preAlarmCities.forEach(id => {
+    if (id !== targetId) counts[id] = (counts[id] || 0) + 1;
   }));
   const result = {};
   Object.entries(counts).forEach(([id, cnt]) => { result[id] = cnt / hits.length; });
@@ -65,7 +63,7 @@ function computeCorrelations(targetId, sequences) {
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export default function AnalysisView({ sequences, initialCity, onBack,
+export default function AnalysisView({ sequences, cities, initialCity, onBack,
                                        polygonMode, setPolygonMode, polygons, polyLoading }) {
   const [query, setQuery]             = useState(initialCity ? (initialCity.en || initialCity.ru || initialCity.he) : '');
   const [targetCity, setTargetCity]   = useState(initialCity || null);
@@ -75,14 +73,7 @@ export default function AnalysisView({ sequences, initialCity, onBack,
   const dropdownRef = useRef(null);
 
   // All cities that appear in at least one actual alarm (to restrict search)
-  const allCities = useMemo(() => buildCityIndex(sequences), [sequences]);
-  const alertedIds = useMemo(() => {
-    const s = new Set();
-    sequences.filter(seq => seq.type === 'PREEMPTIVE_SEQUENCE')
-             .forEach(seq => seq.realAlarmCities.forEach(c => s.add(c.id)));
-    return s;
-  }, [sequences]);
-  const alertedCities = useMemo(() => allCities.filter(c => alertedIds.has(c.id)), [allCities, alertedIds]);
+  const alertedCities = useMemo(() => buildCityIndex(sequences, cities), [sequences, cities]);
 
   // Autocomplete filter (EN › RU › HE)
   const filtered = useMemo(() => {
@@ -112,23 +103,23 @@ export default function AnalysisView({ sequences, initialCity, onBack,
     if (!targetCity) return [];
     const pts = [{ ...targetCity, kind: 'target', score: null }];
     Object.entries(visible).forEach(([id, score]) => {
-      const city = allCities.find(c => String(c.id) === String(id));
+      const city = cities[id];
       if (city?.lat && city?.lng) pts.push({ ...city, kind: 'corr', score });
     });
     return pts;
-  }, [targetCity, visible, allCities]);
+  }, [targetCity, visible, cities]);
 
   const hitCount = useMemo(() => {
     if (!targetCity) return 0;
     return sequences.filter(
-      s => s.type === 'PREEMPTIVE_SEQUENCE' && s.realAlarmCities.some(c => c.id === targetCity.id)
+      s => s.type === 'PREEMPTIVE_SEQUENCE' && s.realAlarmCities.includes(targetCity.id)
     ).length;
   }, [targetCity, sequences]);
 
   const earlyAlarmCount = useMemo(() => {
     if (!targetCity) return 0;
     return sequences.filter(
-      s => s.type === 'PREEMPTIVE_SEQUENCE' && s.preAlarmCities.some(c => c.id === targetCity.id)
+      s => s.type === 'PREEMPTIVE_SEQUENCE' && s.preAlarmCities.includes(targetCity.id)
     ).length;
   }, [targetCity, sequences]);
 
@@ -313,10 +304,10 @@ export default function AnalysisView({ sequences, initialCity, onBack,
                       positions={polygons[id]}
                       pathOptions={{ color: scoreColor(score, 0.10), fillColor: scoreColor(score, 0.10), fillOpacity: 0.3, weight: 1.5 }}
                     >
-                      {city && (
+                      {cities[id] && (
                         <Popup>
-                          <strong>{city.en || city.ru || city.he}</strong><br />
-                          <span style={{ color: '#888' }}>{city.he}</span><br />
+                          <strong>{cities[id].en || cities[id].ru || cities[id].he}</strong><br />
+                          <span style={{ color: '#888' }}>{cities[id].he}</span><br />
                           <em>{(score * 100).toFixed(0)}% co-warning</em>
                         </Popup>
                       )}

@@ -25,7 +25,7 @@ PRE_ALARM_MARKER = 'בדקות הקרובות צפויות להתקבל'
 END_PHRASE_RE    = re.compile(r'(היכנסו למרחב|ניתן לצאת|הישמעו|האירוע הסתיים|סיום שהייה)')
 COUNTDOWN_RE     = re.compile(r'\s*\([^)]*\)\s*$')
 
-IRAN_ORIGINS    = {'Iran'}
+IRAN_ORIGINS    = {'Iran', ''}
 LNKD_ORIGINS    = IRAN_ORIGINS          # these get linked to the pre-alarm
 STANDALONE_ORGS = {'Lebanon', 'Gaza'}   # these are always standalone
 
@@ -92,21 +92,26 @@ def get_telegram_cutoff(filepath):
     return last_dt
 
 # ── Step 2: extract + merge pre-alarms from Telegram ──────────────────────────
-def extract_pre_alarms(filepath, by_he):
+def extract_pre_alarms(filepath, by_he, start_time=None):
     with open(filepath, encoding='utf-8') as f:
         data = json.load(f)
 
     raw_events = []
     for msg in data.get('messages', []):
-        text = get_text(msg)
-        if PRE_ALARM_MARKER not in text:
-            continue
         dt_str = msg.get('date')
         if not dt_str:
             continue
+        dt = datetime.fromisoformat(dt_str)
+        if start_time and dt <= start_time:
+            continue
+        
+        text = get_text(msg)
+        if PRE_ALARM_MARKER not in text:
+            continue
+            
         cities = _extract_cities_from_text(text, by_he)
         raw_events.append({
-            'time': datetime.fromisoformat(dt_str),
+            'time': dt,
             'cities': cities,
         })
 
@@ -144,7 +149,7 @@ def _extract_cities_from_text(text, by_he):
     return matched
 
 # ── Step 3: load alarms from CSV ──────────────────────────────────────────────
-def load_csv_alarms(filepath, by_he, cutoff_dt):
+def load_csv_alarms(filepath, by_he, cutoff_dt=None, start_time=None):
     """
     Returns a list of alarm dicts, each being one logical alarm event:
     {
@@ -167,7 +172,9 @@ def load_csv_alarms(filepath, by_he, cutoff_dt):
                 dt = parse_dt_csv(time_str)
             except ValueError:
                 continue
-            if dt > cutoff_dt:
+            if cutoff_dt and dt > cutoff_dt:
+                continue
+            if start_time and dt <= start_time:
                 continue
             ev_id     = row.get('id', '').strip()
             origin    = row.get('origin', '').strip()
@@ -283,8 +290,8 @@ def build_sequences(pre_alarms, csv_alarms):
             'id':              seq_id,
             'type':            'PREEMPTIVE_SEQUENCE',
             'startTime':       pa['time'].isoformat(),
-            'preAlarmCities':  pa['cities'],
-            'realAlarmCities': real_cities,
+            'preAlarmCities':  [c['id'] for c in pa['cities']],
+            'realAlarmCities': [c['id'] for c in real_cities],
         })
         seq_id += 1
 
@@ -298,7 +305,7 @@ def build_sequences(pre_alarms, csv_alarms):
                 'type':            'STANDALONE_ALARM',
                 'startTime':       alarm['time'].isoformat(),
                 'preAlarmCities':  [],
-                'realAlarmCities': list(alarm['cities']),
+                'realAlarmCities': [c['id'] for c in alarm['cities']],
                 '_last_time':      alarm['time'],
                 '_seen':           _city_set(alarm['cities']),
             }
@@ -309,7 +316,7 @@ def build_sequences(pre_alarms, csv_alarms):
                 current['_last_time'] = alarm['time']
                 for c in alarm['cities']:
                     if c['id'] not in current['_seen']:
-                        current['realAlarmCities'].append(c)
+                        current['realAlarmCities'].append(c['id'])
                         current['_seen'].add(c['id'])
             else:
                 sequences.append(_clean(current))
@@ -318,7 +325,7 @@ def build_sequences(pre_alarms, csv_alarms):
                     'type':            'STANDALONE_ALARM',
                     'startTime':       alarm['time'].isoformat(),
                     'preAlarmCities':  [],
-                    'realAlarmCities': list(alarm['cities']),
+                    'realAlarmCities': [c['id'] for c in alarm['cities']],
                     '_last_time':      alarm['time'],
                     '_seen':           _city_set(alarm['cities']),
                 }
@@ -335,13 +342,14 @@ def build_sequences(pre_alarms, csv_alarms):
 
 
 # ── main ─────────────────────────────────────────────────────────────────────
-if __name__ == '__main__':
+def run_full_rebuild():
     by_he = load_cities()
     print(f"Loaded {len(by_he)} Hebrew city names.")
 
-    # Load Real alarms from CSV first to find the true valid cutoff
+    # Load Real alarms from CSV (use START_FILTER if needed, or stick to Feb 27 for full)
+    START_FILTER = datetime(2026, 2, 27)
     all_csv = load_csv_alarms('azakot_source.csv', by_he, cutoff_dt=datetime.max)
-    csv_alarms = [a for a in all_csv if a['time'].year == 2026]
+    csv_alarms = [a for a in all_csv if a['time'] >= START_FILTER]
     
     if csv_alarms:
         csv_max_time = max(a['time'] for a in csv_alarms)
@@ -350,9 +358,9 @@ if __name__ == '__main__':
         
     print(f"CSV alarm events (2026): {len(csv_alarms)}, Max CSV Date: {csv_max_time}")
 
-    # Pre-alarms from Telegram (2026 only, strictly capped to CSV's latest update)
-    all_pre = extract_pre_alarms('azakot_heb.json', by_he)
-    pre_alarms = [p for p in all_pre if p['time'].year == 2026 and p['time'] <= csv_max_time]
+    # Pre-alarms from Telegram (strictly starting from Feb 27)
+    all_pre = extract_pre_alarms('azakot_heb_archive.json', by_he)
+    pre_alarms = [p for p in all_pre if p['time'] >= START_FILTER and p['time'] <= csv_max_time]
     print(f"Pre-alarms (2026, <= CSV cutoff): {len(pre_alarms)}")
 
     origin_counts = {}
@@ -367,3 +375,6 @@ if __name__ == '__main__':
     with open('data.json', 'w', encoding='utf-8') as f:
         json.dump(sequences, f, ensure_ascii=False, indent=2, default=str)
     print(f"\nSaved {len(sequences)} sequences to data.json")
+
+if __name__ == '__main__':
+    run_full_rebuild()

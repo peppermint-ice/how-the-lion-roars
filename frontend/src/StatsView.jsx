@@ -39,8 +39,7 @@ function StatsMap({ items, keyProp, getColor, getLabel, listReference }) {
       style={{ height: '100%', width: '100%', position: 'absolute', inset: 0 }}>
       <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="" />
       {items.filter(c => c.lat && c.lng).map((c, i) => {
-        const fullItem = c.id && itemLookup[c.id] ? itemLookup[c.id] : c;
-        const col = getColor(fullItem);
+        const col = getColor(c);
         return (
           <CircleMarker key={`${keyProp}-${c.id ?? i}`} center={[c.lat, c.lng]} radius={4}
             pathOptions={{ color: col, fillColor: col, fillOpacity: 0.85, weight: 0.5 }}>
@@ -79,7 +78,7 @@ function RankList({ items, getValue, getLabel, maxVal }) {
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export default function StatsView({ sequences }) {
+export default function StatsView({ sequences, cities }) {
   const [topFilter, setTopFilter] = useState('iran');
   const [showAllTop, setShowAllTop]   = useState(false);
   const [showAllWarn, setShowAllWarn] = useState(false);
@@ -91,50 +90,48 @@ export default function StatsView({ sequences }) {
   // Iran real-alarm counts
   const iranMap = useMemo(() => {
     const m = {};
-    preSeqs.forEach(seq => seq.realAlarmCities.forEach(c => {
-      if (!c.id) return;
-      if (!m[c.id]) m[c.id] = { ...c, count: 0 };
-      m[c.id].count++;
+    preSeqs.forEach(seq => seq.realAlarmCities.forEach(id => {
+      if (!m[id] && cities[id]) m[id] = { ...cities[id], count: 0 };
+      if (m[id]) m[id].count++;
     }));
     return m;
-  }, [preSeqs]);
+  }, [preSeqs, cities]);
 
   // Lebanon / standalone real-alarm counts
   const lebaMap = useMemo(() => {
     const m = {};
-    standSeqs.forEach(seq => seq.realAlarmCities.forEach(c => {
-      if (!c.id) return;
-      if (!m[c.id]) m[c.id] = { ...c, count: 0 };
-      m[c.id].count++;
+    standSeqs.forEach(seq => seq.realAlarmCities.forEach(id => {
+      if (!m[id] && cities[id]) m[id] = { ...cities[id], count: 0 };
+      if (m[id]) m[id].count++;
     }));
     return m;
-  }, [standSeqs]);
+  }, [standSeqs, cities]);
 
   // All combined
   const allMap = useMemo(() => {
     const m = {};
-    [...preSeqs, ...standSeqs].forEach(seq => seq.realAlarmCities.forEach(c => {
-      if (!c.id) return;
-      if (!m[c.id]) m[c.id] = { ...c, count: 0 };
-      m[c.id].count++;
+    [...preSeqs, ...standSeqs].forEach(seq => seq.realAlarmCities.forEach(id => {
+      if (!m[id] && cities[id]) m[id] = { ...cities[id], count: 0 };
+      if (m[id]) m[id].count++;
     }));
     return m;
-  }, [preSeqs, standSeqs]);
+  }, [preSeqs, standSeqs, cities]);
 
   // Early warnings (Iran only)
   const warningMap = useMemo(() => {
     const m = {};
     preSeqs.forEach(seq => {
-      const hitIds = new Set(seq.realAlarmCities.map(c => c.id));
-      seq.preAlarmCities.forEach(c => {
-        if (!c.id) return;
-        if (!m[c.id]) m[c.id] = { ...c, warnCount: 0, hitCount: 0 };
-        m[c.id].warnCount++;
-        if (hitIds.has(c.id)) m[c.id].hitCount++;
+      const hitIds = new Set(seq.realAlarmCities);
+      seq.preAlarmCities.forEach(id => {
+        if (!m[id] && cities[id]) m[id] = { ...cities[id], warnCount: 0, hitCount: 0 };
+        if (m[id]) {
+          m[id].warnCount++;
+          if (hitIds.has(id)) m[id].hitCount++;
+        }
       });
     });
     return m;
-  }, [preSeqs]);
+  }, [preSeqs, cities]);
 
   // Efficiency: cities with ≥1 false positive
   const effData = useMemo(() =>

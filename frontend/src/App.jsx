@@ -30,18 +30,25 @@ const DOT_COLORS = {
   surprise:    { color: '#7f1d1d', fill: '#991b1b', label: 'Alert without warning'  },
 };
 
-function computeMarkers(seq) {
-  if (!seq) return [];
-  const preIds  = new Set(seq.preAlarmCities.map(c => c.id));
-  const realIds = new Set(seq.realAlarmCities.map(c => c.id));
+function computeMarkers(seq, cities) {
+  if (!seq || !cities) return [];
+  const preIds  = new Set(seq.preAlarmCities);
+  const realIds = new Set(seq.realAlarmCities);
   const markers = [];
-  for (const c of seq.preAlarmCities) {
-    if (!c.lat || !c.lng) continue;
-    markers.push({ ...c, kind: realIds.has(c.id) ? 'warned_hit' : 'warned_only' });
-  }
-  for (const c of seq.realAlarmCities) {
-    if (!c.lat || !c.lng) continue;
-    if (!preIds.has(c.id)) markers.push({ ...c, kind: 'surprise' });
+  
+  // Create unique set of all city IDs in this sequence
+  const allIds = new Set([...seq.preAlarmCities, ...seq.realAlarmCities]);
+  
+  for (const id of allIds) {
+    const c = cities[id];
+    if (!c || !c.lat || !c.lng) continue;
+    
+    let kind = 'surprise';
+    if (preIds.has(id)) {
+      kind = realIds.has(id) ? 'warned_hit' : 'warned_only';
+    }
+    
+    markers.push({ ...c, kind });
   }
   return markers;
 }
@@ -49,6 +56,7 @@ function computeMarkers(seq) {
 // ── App ───────────────────────────────────────────────────────────────────────
 export default function App() {
   const [sequences, setSequences]   = useState([]);
+  const [cities, setCities]         = useState({});
   const [loading, setLoading]       = useState(true);
   const [selectedId, setSelectedId] = useState(null);
   const [hideStandalone, setHideStandalone] = useState(false);
@@ -77,7 +85,14 @@ export default function App() {
     fetch('/data.json')
       .then(r => r.json())
       .then(d => {
-        const sorted = [...d].sort((a, b) => new Date(b.startTime) - new Date(a.startTime));
+        let seqs = [];
+        if (d.sequences) {
+          seqs = d.sequences;
+          setCities(d.cities || {});
+        } else {
+          seqs = d; // fallback for old format if needed during dev
+        }
+        const sorted = [...seqs].sort((a, b) => new Date(b.startTime) - new Date(a.startTime));
         setSequences(sorted);
         if (sorted.length > 0) setSelectedId(sorted[0].id);
         setLoading(false);
@@ -85,7 +100,7 @@ export default function App() {
   }, []);
 
   const selectedSeq = useMemo(() => sequences.find(s => s.id === selectedId), [sequences, selectedId]);
-  const markers     = useMemo(() => computeMarkers(selectedSeq), [selectedSeq]);
+  const markers     = useMemo(() => computeMarkers(selectedSeq, cities), [selectedSeq, cities]);
 
   if (loading) return <div className="loading">Loading...</div>;
 
@@ -126,10 +141,11 @@ export default function App() {
       </header>
 
       {activeView === 'stats' ? (
-        <StatsView sequences={sequences} />
+        <StatsView sequences={sequences} cities={cities} />
       ) : activeView === 'analysis' ? (
         <AnalysisView
           sequences={sequences}
+          cities={cities}
           initialCity={analysisCity}
           onBack={() => setActiveView('history')}
           polygonMode={polygonMode}
