@@ -1,0 +1,12 @@
+[
+ {
+  "id": 1,
+  "type": "STANDALONE_ALARM",
+  "startTime": "2026-03-23T15:24:39",
+  "preAlarmCities": [],
+  "realAlarmCities": [
+   1662,
+   1658
+  ]
+ }
+]
