@@ -96,7 +96,8 @@ export default function AnalysisView({ sequences, cities, initialCity, onBack,
     return alertedCities.filter(c =>
       (c.en && c.en.toLowerCase().includes(q)) ||
       (c.ru && c.ru.toLowerCase().includes(q)) ||
-      (c.he && c.he.includes(query.trim()))
+      (c.he && c.he.includes(query.trim())) ||
+      (c.ar && c.ar.includes(query.trim()))
     ).slice(0, 60);
   }, [query, alertedCities]);
 
@@ -206,7 +207,7 @@ export default function AnalysisView({ sequences, cities, initialCity, onBack,
               {filtered.map(c => (
                 <li key={c.id} className="city-option" onMouseDown={() => handleSelect(c)}>
                   <span className="city-en">{c.en || c.ru}</span>
-                  <span className="city-he">{c.he}</span>
+                  <span className="city-he">{c.he} {c.ar && ` · ${c.ar}`}</span>
                   {c.ru && c.en && <span className="city-ru">{c.ru}</span>}
                 </li>
               ))}
@@ -221,7 +222,7 @@ export default function AnalysisView({ sequences, cities, initialCity, onBack,
               <div className="target-name">
                 <span className="blue-dot" />
                 <span>{targetCity.en || targetCity.ru || targetCity.he}</span>
-                <span className="city-he-small">{targetCity.he}</span>
+                <span className="city-he-small">{targetCity.he} {targetCity.ar && ` · ${targetCity.ar}`}</span>
               </div>
               {targetCity.ru && targetCity.en && <div className="target-ru">{targetCity.ru}</div>}
               <div className="target-stats">

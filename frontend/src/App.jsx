@@ -23,6 +23,26 @@ const MapController = ({ markers }) => {
   return null;
 };
 
+// --- Formatting helpers ---
+const formatDuration = (sec) => {
+  if (!sec && sec !== 0) return '0:00';
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  if (h > 0) {
+    return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  }
+  return `${m}:${String(s).padStart(2, '0')}`;
+};
+
+const formatLeadTime = (sec) => {
+  if (!sec && sec !== 0) return '0s';
+  if (sec < 60) return `${sec}s`;
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
+};
+
 // --- Dot / polygon color logic ---
 const DOT_COLORS = {
   warned_hit:  { color: '#ff2222', fill: '#ff2222', label: 'Early warning + alert' },
@@ -85,10 +105,8 @@ export default function App() {
 
   const goToAnalysis = city => {
     setAnalysisCity(city);
-    setActiveView('history');
+    setActiveView('analysis');
     setSelectedId(null);
-    setCityFilter(city);
-    setCityQuery(city.en || city.ru || city.he);
     setVisibleCount(10);
   };
 
@@ -132,8 +150,9 @@ export default function App() {
     return sequences.filter(s => {
       if (iranOnly && s.origin !== 'Iran') return false;
       if (cityFilter) {
-        const inPre = s.preAlarmCities.includes(cityFilter.id);
-        const inReal = s.realAlarmCities.includes(cityFilter.id);
+        const strId = String(cityFilter.id);
+        const inPre = s.preAlarmCities.includes(strId);
+        const inReal = s.realAlarmCities.includes(strId);
         if (!inPre && !inReal) return false;
       }
       const sDate = s.startTime.split('T')[0];
@@ -155,7 +174,8 @@ export default function App() {
     return allCitiesList.filter(c =>
       (c.en && c.en.toLowerCase().includes(q)) ||
       (c.ru && c.ru.toLowerCase().includes(q)) ||
-      (c.he && c.he.includes(q))
+      (c.he && c.he.includes(q)) ||
+      (c.ar && c.ar.includes(q))
     ).slice(0, 50);
   }, [cityQuery, allCitiesList]);
 
@@ -256,7 +276,7 @@ export default function App() {
                         setVisibleCount(10);
                       }}>
                         <span className="city-en">{c.en}</span>
-                        <span className="city-he-small">{c.he}</span>
+                        <span className="city-he-small">{c.he} {c.ar && ` · ${c.ar}`}</span>
                       </li>
                     ))}
                   </ul>
@@ -348,8 +368,7 @@ export default function App() {
           {selectedSeq && (
             <div className="info-overlay">
               <div className="origin-badge">Origin: {selectedId === '194' || selectedId === '196' ? 'Iran State' : selectedSeq.origin}</div>
-              <h2>{selectedSeq.start_type === 14 ? 'Early Warning Session' : 'Surprise Attack Session'}</h2>
-              <p className="overlay-time">{new Date(selectedSeq.startTime).toLocaleString()}</p>
+              <p className="overlay-time">{new Date(selectedSeq.startTime).toLocaleString('en-GB')}</p>
               
               <div className="sequence-summary">
                 <div className="stat-row">
@@ -362,18 +381,18 @@ export default function App() {
                 </div>
                 <div className="stat-divider" />
                 <div className="stat-row highlight">
-                  <span>Duration:</span>
-                  <strong>{Math.floor(selectedSeq.duration_sec / 60)}m {selectedSeq.duration_sec % 60}s</strong>
+                  <span>Time in shelter:</span>
+                  <strong>{formatDuration(selectedSeq.duration_sec)}</strong>
                 </div>
                 {selectedSeq.lead_time_sec > 0 && (
                   <div className="stat-row highlight lead">
-                    <span>Lead Time:</span>
-                    <strong>{selectedSeq.lead_time_sec}s</strong>
+                    <span>Time after early warning:</span>
+                    <strong>{formatLeadTime(selectedSeq.lead_time_sec)}</strong>
                   </div>
                 )}
                 {selectedSeq.attack_times && selectedSeq.attack_times.length > 0 && (
                   <div className="stat-row mini">
-                    <span>Attacks: {selectedSeq.attack_times.length} waves</span>
+                    <span>Waves: {selectedSeq.attack_times.length}</span>
                   </div>
                 )}
               </div>
