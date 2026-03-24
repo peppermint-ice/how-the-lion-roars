@@ -44,21 +44,35 @@ function buildCityIndex(sequences, cities) {
   if (!cities) return [];
   const s = new Set();
   sequences.filter(seq => seq.type === 'PREEMPTIVE_SEQUENCE')
-           .forEach(seq => seq.realAlarmCities.forEach(id => s.add(id)));
-  return Object.values(cities).filter(c => s.has(c.id) && c.lat && c.lng);
+           .forEach(seq => seq.realAlarmCities.forEach(id => s.add(String(id))));
+  return Object.values(cities).filter(c => s.has(String(c.id)) && c.lat && c.lng);
 }
 
 // ── Correlation computation ───────────────────────────────────────────────────
 function computeCorrelations(targetId, sequences) {
+  const strId = String(targetId);
   const pre = sequences.filter(s => s.type === 'PREEMPTIVE_SEQUENCE');
-  const hits = pre.filter(s => s.realAlarmCities.includes(targetId));
-  if (!hits.length) return {};
-  const counts = {};
-  hits.forEach(seq => seq.preAlarmCities.forEach(id => {
-    if (id !== targetId) counts[id] = (counts[id] || 0) + 1;
-  }));
+  const targetWarnedSeqs = pre.filter(s => s.preAlarmCities.includes(strId));
+  if (!targetWarnedSeqs.length) return {};
+
+  const bothWarnedCounts = {};       // Denominator
+  const bothWarnedAndHitCounts = {};  // Numerator
+  
+  targetWarnedSeqs.forEach(seq => {
+    const isTargetHit = seq.realAlarmCities.includes(strId);
+    seq.preAlarmCities.forEach(otherId => {
+      if (otherId === strId) return;
+      bothWarnedCounts[otherId] = (bothWarnedCounts[otherId] || 0) + 1;
+      if (isTargetHit) {
+        bothWarnedAndHitCounts[otherId] = (bothWarnedAndHitCounts[otherId] || 0) + 1;
+      }
+    });
+  });
+  
   const result = {};
-  Object.entries(counts).forEach(([id, cnt]) => { result[id] = cnt / hits.length; });
+  Object.keys(bothWarnedCounts).forEach(id => {
+    result[id] = (bothWarnedAndHitCounts[id] || 0) / bothWarnedCounts[id];
+  });
   return result;
 }
 
@@ -111,19 +125,31 @@ export default function AnalysisView({ sequences, cities, initialCity, onBack,
 
   const hitCount = useMemo(() => {
     if (!targetCity) return 0;
+    const sid = String(targetCity.id);
     return sequences.filter(
-      s => s.type === 'PREEMPTIVE_SEQUENCE' && s.realAlarmCities.includes(targetCity.id)
+      s => s.type === 'PREEMPTIVE_SEQUENCE' && s.realAlarmCities.includes(sid)
     ).length;
   }, [targetCity, sequences]);
 
   const earlyAlarmCount = useMemo(() => {
     if (!targetCity) return 0;
+    const sid = String(targetCity.id);
     return sequences.filter(
-      s => s.type === 'PREEMPTIVE_SEQUENCE' && s.preAlarmCities.includes(targetCity.id)
+      s => s.type === 'PREEMPTIVE_SEQUENCE' && s.preAlarmCities.includes(sid)
     ).length;
   }, [targetCity, sequences]);
 
-  const pctHit = earlyAlarmCount > 0 ? Math.round(hitCount / earlyAlarmCount * 100) : 0;
+  const warnedHits = useMemo(() => {
+    if (!targetCity) return 0;
+    const sid = String(targetCity.id);
+    return sequences.filter(
+      s => s.type === 'PREEMPTIVE_SEQUENCE' &&
+           s.realAlarmCities.includes(sid) &&
+           s.preAlarmCities.includes(sid)
+    ).length;
+  }, [targetCity, sequences]);
+
+  const pctHit = hitCount > 0 ? Math.round(warnedHits / hitCount * 100) : 0;
 
   // Close dropdown on outside click
   useEffect(() => {

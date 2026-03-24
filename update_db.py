@@ -164,15 +164,15 @@ def main():
     print("4. Creating incremental update file...")
     by_he = heb_parser.load_cities()
     
-    # Pre-alarms: parse specifically from the newly synced store
-    pre_alarms = heb_parser.extract_pre_alarms('azakot_heb.json', by_he, start_time=latest_time)
-    print(f"   Extracted {len(pre_alarms)} new early warnings since {latest_time}")
+    # Telegram events: parse specifically from the newly synced store
+    tg_events = heb_parser.extract_telegram_events('azakot_heb.json', by_he, start_time=latest_time)
+    print(f"   Extracted {len(tg_events)} new Telegram events since {latest_time}")
     
     # Alarms: parse CSV filtered by start_time
     new_csv_alarms = heb_parser.load_csv_alarms('azakot_source.csv', by_he, start_time=latest_time)
     print(f"   Extracted {len(new_csv_alarms)} new alert events since {latest_time}")
     
-    new_sequences = heb_parser.build_sequences(pre_alarms, new_csv_alarms)
+    new_sequences = heb_parser.build_sequences(tg_events, new_csv_alarms)
     
     if new_sequences:
         # Cleanup old update files

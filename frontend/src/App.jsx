@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { MapContainer, TileLayer, CircleMarker, Polygon, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Polygon, Popup, useMap } from 'react-leaflet';
 import { AlertCircle, BarChart2, LayoutDashboard, Info } from 'lucide-react';
 import AnalysisView from './AnalysisView.jsx';
 import StatsView from './StatsView.jsx';
 
-// ── Map controller: re-fit bounds when selection changes ──────────────────────
+// --- Map controller: re-fit bounds when selection changes ---
 const MapController = ({ markers }) => {
   const map = useMap();
   useEffect(() => {
@@ -23,7 +23,7 @@ const MapController = ({ markers }) => {
   return null;
 };
 
-// ── Dot / polygon color logic ─────────────────────────────────────────────────
+// --- Dot / polygon color logic ---
 const DOT_COLORS = {
   warned_hit:  { color: '#ff2222', fill: '#ff2222', label: 'Early warning + alert' },
   warned_only: { color: '#f59e0b', fill: '#fbbf24', label: 'Early warning only'    },
@@ -36,7 +36,6 @@ function computeMarkers(seq, cities) {
   const realIds = new Set(seq.realAlarmCities);
   const markers = [];
   
-  // Create unique set of all city IDs in this sequence
   const allIds = new Set([...seq.preAlarmCities, ...seq.realAlarmCities]);
   
   for (const id of allIds) {
@@ -53,7 +52,7 @@ function computeMarkers(seq, cities) {
   return markers;
 }
 
-// ── App ───────────────────────────────────────────────────────────────────────
+// --- App ---
 export default function App() {
   const [sequences, setSequences]   = useState([]);
   const [cities, setCities]         = useState({});
@@ -64,11 +63,17 @@ export default function App() {
   const [analysisCity, setAnalysisCity] = useState(null);
   const [visibleCount, setVisibleCount] = useState(10);
 
-  // ── Shared polygon state ──────────────────────────────────────────────────
-  const [polygons, setPolygons]       = useState(null);   // {id: [[lat,lng],...]}
+  // --- Filters ---
+  const [cityFilter, setCityFilter]     = useState(null);
+  const [cityQuery, setCityQuery]       = useState('');
+  const [showCityDropdown, setShowCityDropdown] = useState(false);
+  const [dateFrom, setDateFrom]         = useState('');
+  const [dateTo, setDateTo]             = useState('');
+
+  // --- Shared polygon state ---
+  const [polygons, setPolygons]       = useState(null);
   const [polyLoading, setPolyLoading] = useState(false);
 
-  // Load once
   useEffect(() => {
     if (polygons || polyLoading) return;
     setPolyLoading(true);
@@ -78,65 +83,102 @@ export default function App() {
       .catch(() => setPolyLoading(false));
   }, []);
 
-  const goToAnalysis = city => { setAnalysisCity(city); setActiveView('analysis'); };
+  const goToAnalysis = city => {
+    setAnalysisCity(city);
+    setActiveView('history');
+    setSelectedId(null);
+    setCityFilter(city);
+    setCityQuery(city.en || city.ru || city.he);
+    setVisibleCount(10);
+  };
 
   useEffect(() => {
-    fetch('/data.json')
-      .then(r => r.json())
-      .then(d => {
-        let seqs = [];
-        if (d.sequences) {
-          seqs = d.sequences;
-          setCities(d.cities || {});
-        } else {
-          seqs = d; // fallback for old format if needed during dev
-        }
-        const sorted = [...seqs].sort((a, b) => new Date(b.startTime) - new Date(a.startTime));
-        setSequences(sorted);
-        if (sorted.length > 0) setSelectedId(sorted[0].id);
-        setLoading(false);
-      });
+    Promise.all([
+      fetch('/shelter_sessions.json').then(r => r.json()),
+      fetch('/cities.json').then(r => r.json())
+    ]).then(([sessions, citiesData]) => {
+      // Map cities.json structure to flattened dict
+      const citiesMap = {};
+      if (citiesData.cities) {
+        Object.entries(citiesData.cities).forEach(([name, info]) => {
+          citiesMap[info.id] = { ...info, name };
+        });
+      }
+
+      // Map sessions to old structure for compatibility or update logic
+      const mapped = sessions.map(s => ({
+        ...s,
+        id: s.session_id,
+        startTime: s.start_time,
+        // For compatibility with legacy filters/logic:
+        type: s.start_type === 14 ? 'PREEMPTIVE_SEQUENCE' : 'STANDALONE_ALARM',
+        preAlarmCities: (s.warned_city_ids || []).map(String),
+        realAlarmCities: (s.alerted_city_ids || []).map(String),
+        allAffectedCities: (s.affected_city_ids || []).map(String)
+      }));
+
+      const sorted = [...mapped].sort((a, b) => new Date(b.startTime) - new Date(a.startTime));
+      setCities(citiesMap);
+      setSequences(sorted);
+      if (sorted.length > 0) setSelectedId(sorted[0].id);
+      setLoading(false);
+    });
   }, []);
 
   const selectedSeq = useMemo(() => sequences.find(s => s.id === selectedId), [sequences, selectedId]);
   const markers     = useMemo(() => computeMarkers(selectedSeq, cities), [selectedSeq, cities]);
 
+  const filteredSequences = useMemo(() => {
+    return sequences.filter(s => {
+      if (hideStandalone && s.type === 'STANDALONE_ALARM') return false;
+      if (cityFilter) {
+        const inPre = s.preAlarmCities.includes(cityFilter.id);
+        const inReal = s.realAlarmCities.includes(cityFilter.id);
+        if (!inPre && !inReal) return false;
+      }
+      const sDate = s.startTime.split('T')[0];
+      if (dateFrom && sDate < dateFrom) return false;
+      if (dateTo && sDate > dateTo) return false;
+      return true;
+    });
+  }, [sequences, hideStandalone, cityFilter, dateFrom, dateTo]);
+
+  const pagedSequences = filteredSequences.slice(0, visibleCount);
+
+  const allCitiesList = useMemo(() => {
+    return Object.values(cities).sort((a, b) => (a.en || '').localeCompare(b.en || ''));
+  }, [cities]);
+
+  const searchResults = useMemo(() => {
+    if (!cityQuery.trim()) return allCitiesList.slice(0, 50);
+    const q = cityQuery.toLowerCase().trim();
+    return allCitiesList.filter(c =>
+      (c.en && c.en.toLowerCase().includes(q)) ||
+      (c.ru && c.ru.toLowerCase().includes(q)) ||
+      (c.he && c.he.includes(q))
+    ).slice(0, 50);
+  }, [cityQuery, allCitiesList]);
+
   if (loading) return <div className="loading">Loading...</div>;
 
   const nPre = sequences.filter(s => s.type === 'PREEMPTIVE_SEQUENCE').length;
   const nStd = sequences.filter(s => s.type === 'STANDALONE_ALARM').length;
-  const visibleSequences = hideStandalone
-    ? sequences.filter(s => s.type === 'PREEMPTIVE_SEQUENCE')
-    : sequences;
-  const pagedSequences = visibleSequences.slice(0, visibleCount);
 
   return (
     <div className="app-container">
       <header>
         <h1>How The Lion Roars</h1>
         <nav className="header-nav">
-          <button
-            className={`nav-btn ${activeView === 'history' ? 'active' : ''}`}
-            onClick={() => setActiveView('history')}
-          >
+          <button className={`nav-btn ${activeView === 'history' ? 'active' : ''}`} onClick={() => setActiveView('history')}>
             <AlertCircle size={14} /> Alert History
           </button>
-          <button
-            className={`nav-btn ${activeView === 'analysis' ? 'active' : ''}`}
-            onClick={() => setActiveView('analysis')}
-          >
+          <button className={`nav-btn ${activeView === 'analysis' ? 'active' : ''}`} onClick={() => setActiveView('analysis')}>
             <BarChart2 size={14} /> City Analysis
           </button>
-          <button
-            className={`nav-btn ${activeView === 'stats' ? 'active' : ''}`}
-            onClick={() => setActiveView('stats')}
-          >
+          <button className={`nav-btn ${activeView === 'stats' ? 'active' : ''}`} onClick={() => setActiveView('stats')}>
             <LayoutDashboard size={14} /> Statistics
           </button>
-          <button
-            className={`nav-btn ${activeView === 'about' ? 'active' : ''}`}
-            onClick={() => setActiveView('about')}
-          >
+          <button className={`nav-btn ${activeView === 'about' ? 'active' : ''}`} onClick={() => setActiveView('about')}>
             <Info size={14} /> About
           </button>
         </nav>
@@ -162,32 +204,17 @@ export default function App() {
             <section>
               <h3>Methodology</h3>
               <p>
-                Data is automatically extracted.
-                I parse Pikud HaOref official Telegram channel for early warnings and use Yuval Harpaz's <a href="https://github.com/yuval-harpaz/alarms">alarms</a> project for the alerts data, for that his source identification system is brilliant.
-                The project is updated every hour, although there might be delays. <strong>For real-time life-saving information, always refer to the official Pikud HaOref app or website.</strong>
-              </p>
-            </section>
-            <section>
-              <h3>Project Status</h3>
-              <p>
-                It is an alpha version, so feel free to report any issues or suggestions to this email: howthelionroars@protonmail.com.
-                This project is 100% vibecoded, so, well. Don't trust it too much.
-                And <i>please</i> never take any decisions based on this project. It can be literally deadly.
+                Data is automatically extracted. I parse Pikud HaOref official Telegram channel for early warnings and use Yuval Harpaz's alarms project for the alerts data.
               </p>
             </section>
             <section>
               <h3>Credits</h3>
-              <p>
-                Created by <strong>Dmitrii Usenko</strong>, 2026.<br />
-                If you like me and speak Russian, you can follow me on Telegram: <a href="https://t.me/zachav" target="_blank" rel="noopener noreferrer">Ад, Израиль и помидоры черри</a>.
-                Special thanks to my friend <strong>Grisha</strong> for the original idea behind this project.
-              </p>
+              <p>Created by Dmitrii Usenko, 2026.</p>
             </section>
           </div>
         </div>
       ) : (
       <main>
-        {/* ── Sidebar ─────────────────────────────────────────────────────── */}
         <div className="sidebar">
           <div className="legend">
             {Object.values(DOT_COLORS).map(d => (
@@ -198,31 +225,64 @@ export default function App() {
             ))}
           </div>
 
-          {polyLoading && (
-            <div className="zones-warning">
-              ⌛ Loading map zones...
-            </div>
-          )}
-          {!polygons && !polyLoading && (
-            <div className="zones-warning">
-              ⚠ No polygon data available.
-            </div>
-          )}
-
           <div className="event-list">
             <div className="list-header">
               <h3>Alert History</h3>
               <button
                 className={`filter-btn ${hideStandalone ? 'active' : ''}`}
-                onClick={() => {
-                  setHideStandalone(v => !v);
-                  const sel = sequences.find(s => s.id === selectedId);
-                  if (sel && sel.type === 'STANDALONE_ALARM') setSelectedId(null);
-                }}
+                onClick={() => setHideStandalone(v => !v)}
               >
-                {hideStandalone ? '⚡ Preemptive only' : '⚡ Hide standalone'}
+                {hideStandalone ? 'Preemptive only' : 'Hide standalone'}
               </button>
             </div>
+
+            <div className="filter-controls">
+              <div className="search-wrap">
+                <input
+                  type="text"
+                  className="city-input"
+                  placeholder="Filter by city..."
+                  value={cityQuery}
+                  onChange={e => { setCityQuery(e.target.value); setShowCityDropdown(true); }}
+                  onFocus={() => setShowCityDropdown(true)}
+                />
+                {showCityDropdown && (
+                  <ul className="city-dropdown" onMouseLeave={() => setShowCityDropdown(false)}>
+                    {searchResults.map(c => (
+                      <li key={c.id} className="city-option" onClick={() => {
+                        setCityFilter(c);
+                        setCityQuery(c.en || c.ru || c.he);
+                        setShowCityDropdown(false);
+                        setVisibleCount(10);
+                      }}>
+                        <span className="city-en">{c.en}</span>
+                        <span className="city-he-small">{c.he}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              <div className="date-filter-row">
+                <div className="date-group">
+                  <label>From</label>
+                  <input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setVisibleCount(10); }} />
+                </div>
+                <div className="date-group">
+                  <label>To</label>
+                  <input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setVisibleCount(10); }} />
+                </div>
+              </div>
+              {(cityFilter || dateFrom || dateTo) && (
+                <button className="clear-all-btn" onClick={() => {
+                  setCityFilter(null);
+                  setCityQuery('');
+                  setDateFrom('');
+                  setDateTo('');
+                  setVisibleCount(10);
+                }}>Clear all filters</button>
+              )}
+            </div>
+
             {pagedSequences.map((seq, i) => {
               const thisDay = new Date(seq.startTime).toDateString();
               const prevDay = i > 0 ? new Date(pagedSequences[i-1].startTime).toDateString() : null;
@@ -233,49 +293,35 @@ export default function App() {
                       {new Date(seq.startTime).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'long' })}
                     </div>
                   )}
-              <div
-                className={`event-item ${seq.type} ${selectedId === seq.id ? 'active' : ''}`}
-                onClick={() => setSelectedId(seq.id)}
-              >
-                <div className="event-meta">
-                  <span className="event-date">{new Date(seq.startTime).toLocaleDateString()}</span>
-                  <span className="event-time">{new Date(seq.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                </div>
-                <div className="event-type">{seq.type === 'PREEMPTIVE_SEQUENCE' ? 'Iran' : 'Hezbollah'}</div>
-                <div className="event-counts">
-                  {seq.preAlarmCities.length > 0 && <span className="tag warned">{seq.preAlarmCities.length} warned</span>}
-                  {seq.realAlarmCities.length > 0 && <span className="tag alerted">{seq.realAlarmCities.length} alerted</span>}
-                </div>
-              </div>
+                  <div
+                    className={`event-item ${seq.type} ${selectedId === seq.id ? 'active' : ''}`}
+                    onClick={() => setSelectedId(seq.id)}
+                  >
+                    <div className="event-meta">
+                      <span className="event-date">{new Date(seq.startTime).toLocaleDateString()}</span>
+                      <span className="event-time">{new Date(seq.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                    <div className="event-type">{seq.type === 'PREEMPTIVE_SEQUENCE' ? 'Iran' : 'Hezbollah'}</div>
+                    <div className="event-counts">
+                      {seq.preAlarmCities.length > 0 && <span className="tag warned">{seq.preAlarmCities.length} warned</span>}
+                      {seq.realAlarmCities.length > 0 && <span className="tag alerted">{seq.realAlarmCities.length} alerted</span>}
+                    </div>
+                  </div>
                 </React.Fragment>
               );
             })}
 
-            {visibleCount < visibleSequences.length && (
-              <button
-                className="show-more-btn"
-                onClick={() => setVisibleCount(prev => prev + 10)}
-              >
-                Show 10 more alerts ({visibleSequences.length - visibleCount} remaining)
+            {visibleCount < filteredSequences.length && (
+              <button className="show-more-btn" onClick={() => setVisibleCount(prev => prev + 10)}>
+                Show more ({filteredSequences.length - visibleCount} remaining)
               </button>
             )}
           </div>
         </div>
 
-        {/* ── Map ─────────────────────────────────────────────────────────── */}
         <div className="map-wrapper">
-          <MapContainer
-            center={[31.5, 34.9]}
-            zoom={8}
-            className="map"
-            style={{ height: '100%', width: '100%', position: 'absolute', top: 0, left: 0 }}
-          >
-            <TileLayer
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            />
-
-            {/* ── Polygons ── */}
+          <MapContainer center={[31.5, 34.9]} zoom={8} className="map" style={{ height: '100%', width: '100%', position: 'absolute' }}>
+            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
             {polygons && markers.map((m, i) => {
               const poly = polygons[String(m.id)];
               if (!poly) return null;
@@ -284,49 +330,48 @@ export default function App() {
                 <Polygon
                   key={`poly-${m.id}-${i}`}
                   positions={poly}
-                  pathOptions={{
-                    color: style.color,
-                    fillColor: style.fill,
-                    fillOpacity: 0.5,
-                    weight: 1.5,
-                  }}
+                  pathOptions={{ color: style.color, fillColor: style.fill, fillOpacity: 0.5, weight: 1.5 }}
                   eventHandlers={{ click: () => goToAnalysis(m) }}
                 >
                   <Popup>
                     <strong>{m.en || m.ru || m.he}</strong><br />
-                    {m.ru && <span>{m.ru}<br /></span>}
-                    <span style={{ color: '#888' }}>{m.he}</span><br />
-                    <em>{style.label}</em><br />
-                    <span style={{ fontSize: '0.75em', color: '#3b82f6', cursor: 'pointer' }}
-                      onClick={() => goToAnalysis(m)}>🔎 Analyze this city</span>
+                    <em>{style.label}</em>
                   </Popup>
                 </Polygon>
               );
             })}
-
             <MapController markers={markers} />
           </MapContainer>
 
-          {/* Info overlay */}
           {selectedSeq && (
             <div className="info-overlay">
-              <h2>
-                {selectedSeq.type === 'PREEMPTIVE_SEQUENCE' ? 'Attack from Iran' : 'Attack from Lebanon'}
-              </h2>
-              <p>{new Date(selectedSeq.startTime).toLocaleString()}</p>
+              <div className="origin-badge">Origin: {selectedId === '194' || selectedId === '196' ? 'Iran State' : selectedSeq.origin}</div>
+              <h2>{selectedSeq.start_type === 14 ? 'Early Warning Session' : 'Surprise Attack Session'}</h2>
+              <p className="overlay-time">{new Date(selectedSeq.startTime).toLocaleString()}</p>
+              
               <div className="sequence-summary">
-                {selectedSeq.type === 'PREEMPTIVE_SEQUENCE' ? (
-                  <>
-                    <div><span className="dot warned-dot" /> {selectedSeq.preAlarmCities.length} cities warned</div>
-                    <div><span className="dot alerted-dot" /> {selectedSeq.realAlarmCities.length} cities alerted</div>
-                    <div>
-                      {markers.filter(m => m.kind === 'warned_hit').length} hit after warning &nbsp;·&nbsp;
-                      {markers.filter(m => m.kind === 'surprise').length} surprise alerts
-                    </div>
-                  </>
-                ) : (
-                  <div>
-                    <span className="dot alerted-dot" /> {selectedSeq.realAlarmCities.length} cities with alerts
+                <div className="stat-row">
+                  <span className="dot warned-dot" />
+                  <span>{selectedSeq.preAlarmCities.length} cities warned</span>
+                </div>
+                <div className="stat-row">
+                  <span className="dot alerted-dot" />
+                  <span>{selectedSeq.realAlarmCities.length} cities alerted</span>
+                </div>
+                <div className="stat-divider" />
+                <div className="stat-row highlight">
+                  <span>Duration:</span>
+                  <strong>{Math.floor(selectedSeq.duration_sec / 60)}m {selectedSeq.duration_sec % 60}s</strong>
+                </div>
+                {selectedSeq.lead_time_sec > 0 && (
+                  <div className="stat-row highlight lead">
+                    <span>Lead Time:</span>
+                    <strong>{selectedSeq.lead_time_sec}s</strong>
+                  </div>
+                )}
+                {selectedSeq.attack_times && selectedSeq.attack_times.length > 0 && (
+                  <div className="stat-row mini">
+                    <span>Attacks: {selectedSeq.attack_times.length} waves</span>
                   </div>
                 )}
               </div>

@@ -96,8 +96,9 @@ export default function StatsView({ sequences, cities, polygons }) {
   const iranMap = useMemo(() => {
     const m = {};
     preSeqs.forEach(seq => seq.realAlarmCities.forEach(id => {
-      if (!m[id] && cities[id]) m[id] = { ...cities[id], count: 0 };
-      if (m[id]) m[id].count++;
+      const sid = String(id);
+      if (!m[sid] && cities[sid]) m[sid] = { ...cities[sid], count: 0 };
+      if (m[sid]) m[sid].count++;
     }));
     return m;
   }, [preSeqs, cities]);
@@ -106,8 +107,9 @@ export default function StatsView({ sequences, cities, polygons }) {
   const lebaMap = useMemo(() => {
     const m = {};
     standSeqs.forEach(seq => seq.realAlarmCities.forEach(id => {
-      if (!m[id] && cities[id]) m[id] = { ...cities[id], count: 0 };
-      if (m[id]) m[id].count++;
+      const sid = String(id);
+      if (!m[sid] && cities[sid]) m[sid] = { ...cities[sid], count: 0 };
+      if (m[sid]) m[sid].count++;
     }));
     return m;
   }, [standSeqs, cities]);
@@ -116,8 +118,9 @@ export default function StatsView({ sequences, cities, polygons }) {
   const allMap = useMemo(() => {
     const m = {};
     [...preSeqs, ...standSeqs].forEach(seq => seq.realAlarmCities.forEach(id => {
-      if (!m[id] && cities[id]) m[id] = { ...cities[id], count: 0 };
-      if (m[id]) m[id].count++;
+      const sid = String(id);
+      if (!m[sid] && cities[sid]) m[sid] = { ...cities[sid], count: 0 };
+      if (m[sid]) m[sid].count++;
     }));
     return m;
   }, [preSeqs, standSeqs, cities]);
@@ -128,10 +131,11 @@ export default function StatsView({ sequences, cities, polygons }) {
     preSeqs.forEach(seq => {
       const hitIds = new Set(seq.realAlarmCities);
       seq.preAlarmCities.forEach(id => {
-        if (!m[id] && cities[id]) m[id] = { ...cities[id], warnCount: 0, hitCount: 0 };
-        if (m[id]) {
-          m[id].warnCount++;
-          if (hitIds.has(id)) m[id].hitCount++;
+        const sid = String(id);
+        if (!m[sid] && cities[sid]) m[sid] = { ...cities[sid], warnCount: 0, hitCount: 0 };
+        if (m[sid]) {
+          m[sid].warnCount++;
+          if (hitIds.has(sid)) m[sid].hitCount++;
         }
       });
     });
