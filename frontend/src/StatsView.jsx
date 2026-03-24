@@ -203,7 +203,7 @@ export default function StatsView({ sequences, cities, polygons }) {
           </div>
         </div>
         <div className="stats-body">
-          <div className="stats-list-panel">
+          <div className={`stats-list-panel ${showAllTop ? 'expanded' : ''}`}>
             <RankList
               items={showAllTop ? activeTopList : activeTopList.slice(0, 20)}
               getValue={c => c.count}
@@ -236,7 +236,7 @@ export default function StatsView({ sequences, cities, polygons }) {
           <span className="stats-subtitle">Iran attacks only</span>
         </div>
         <div className="stats-body">
-          <div className="stats-list-panel">
+          <div className={`stats-list-panel ${showAllWarn ? 'expanded' : ''}`}>
             <RankList
               items={showAllWarn ? warningRanked : warningRanked.slice(0, 20)}
               getValue={c => c.warnCount}

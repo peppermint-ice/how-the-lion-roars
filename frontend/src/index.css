@@ -460,7 +460,7 @@ main { flex: 1; display: flex; overflow: hidden; }
 .stats-container {
   flex: 1; overflow-y: auto;
   padding: 1.25rem 1.5rem;
-  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.25rem;
+  display: flex; flex-direction: column; gap: 2rem;
   background: var(--bg);
 }
 
@@ -470,7 +470,7 @@ main { flex: 1; display: flex; overflow: hidden; }
   border: 1px solid var(--border);
   border-radius: .6rem;
   overflow: hidden;
-  height: 100%; min-height: 480px; 
+  height: 520px; flex-shrink: 0;
 }
 
 .stats-section-header {
@@ -489,7 +489,16 @@ main { flex: 1; display: flex; overflow: hidden; }
 }
 
 .stats-body {
-  display: flex; flex: 1; min-height: 0;
+  display: flex; flex: 1; min-height: 0; align-items: stretch;
+}
+
+.stats-list-panel {
+  width: 400px; flex-shrink: 0; border-right: 1px solid var(--border);
+  overflow-y: auto; display: flex; flex-direction: column;
+}
+
+.stats-list-panel.expanded {
+  height: 100%; /* In vertical stack, we can use the section height */
 }
 
 .stats-list-panel::-webkit-scrollbar,
