@@ -58,7 +58,7 @@ export default function App() {
   const [cities, setCities]         = useState({});
   const [loading, setLoading]       = useState(true);
   const [selectedId, setSelectedId] = useState(null);
-  const [hideStandalone, setHideStandalone] = useState(false);
+  const [iranOnly, setIranOnly] = useState(false);
   const [activeView, setActiveView] = useState('history');
   const [analysisCity, setAnalysisCity] = useState(null);
   const [visibleCount, setVisibleCount] = useState(10);
@@ -130,7 +130,7 @@ export default function App() {
 
   const filteredSequences = useMemo(() => {
     return sequences.filter(s => {
-      if (hideStandalone && s.type === 'STANDALONE_ALARM') return false;
+      if (iranOnly && s.origin !== 'Iran') return false;
       if (cityFilter) {
         const inPre = s.preAlarmCities.includes(cityFilter.id);
         const inReal = s.realAlarmCities.includes(cityFilter.id);
@@ -141,7 +141,7 @@ export default function App() {
       if (dateTo && sDate > dateTo) return false;
       return true;
     });
-  }, [sequences, hideStandalone, cityFilter, dateFrom, dateTo]);
+  }, [sequences, iranOnly, cityFilter, dateFrom, dateTo]);
 
   const pagedSequences = filteredSequences.slice(0, visibleCount);
 
@@ -229,10 +229,10 @@ export default function App() {
             <div className="list-header">
               <h3>Alert History</h3>
               <button
-                className={`filter-btn ${hideStandalone ? 'active' : ''}`}
-                onClick={() => setHideStandalone(v => !v)}
+                className={`filter-btn ${iranOnly ? 'active' : ''}`}
+                onClick={() => setIranOnly(v => !v)}
               >
-                {hideStandalone ? 'Preemptive only' : 'Hide standalone'}
+                {iranOnly ? 'Iran only' : 'Hide Hezbollah'}
               </button>
             </div>
 
@@ -301,7 +301,9 @@ export default function App() {
                       <span className="event-date">{new Date(seq.startTime).toLocaleDateString()}</span>
                       <span className="event-time">{new Date(seq.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
-                    <div className="event-type">{seq.type === 'PREEMPTIVE_SEQUENCE' ? 'Iran' : 'Hezbollah'}</div>
+                    <div className="event-type">
+                      {seq.origin === 'Lebanon' ? 'Hezbollah' : (seq.origin || (seq.type === 'PREEMPTIVE_SEQUENCE' ? 'Iran' : 'Hezbollah'))}
+                    </div>
                     <div className="event-counts">
                       {seq.preAlarmCities.length > 0 && <span className="tag warned">{seq.preAlarmCities.length} warned</span>}
                       {seq.realAlarmCities.length > 0 && <span className="tag alerted">{seq.realAlarmCities.length} alerted</span>}
