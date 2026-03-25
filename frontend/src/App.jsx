@@ -265,7 +265,7 @@ export default function App() {
             <section>
               <h3>Credits</h3>
               <p>Created by Dmitrii Usenko, 2026.</p>
-              <p>If you like me and speak Russian, you can follow me on Telegram: <a href="https://t.me/zachav">Ад, Израиль и помидоры черри</a>. Special thanks to my friend Grisha for the original idea behind this project.</p>
+              <p>If you like me and speak Russian, you can follow me on Telegram: <a href="https://t.me/zachav">Ад, Израиль и помидоры черри</a>. Special thanks to my friend Grisha for the original idea behind this project. Another special thanks to my genius contributor Igor who ensures that this website will actually work. </p>
             </section>
           </div>
         </div>
