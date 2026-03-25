@@ -634,7 +634,7 @@ main { flex: 1; display: flex; overflow: hidden; }
   transition: width .3s ease;
 }
 .rank-count {
-  text-align: right; flex-shrink: 0;
+  width: 4.5rem; text-align: right; flex-shrink: 0;
   color: var(--muted); font-size: .65rem;
 }
 
