@@ -42,7 +42,7 @@ header {
   border-bottom: 1px solid var(--border);
   display: flex; align-items: center; justify-content: space-between;
   flex-shrink: 0;
-  z-index: 100;
+  z-index: 2000;
 }
 header h1 { 
   margin: 0; 
@@ -662,6 +662,7 @@ main { flex: 1; display: flex; overflow: hidden; }
     justify-content: flex-start;
     text-align: left;
     flex-wrap: wrap;
+    z-index: 2000;
   }
   
   header h1 { font-size: 1rem; justify-content: flex-start; width: auto; flex: 1; margin: 0; }
@@ -743,7 +744,7 @@ main { flex: 1; display: flex; overflow: hidden; }
     bottom: 1rem;
     left: 1rem;
     right: 1rem;
-    z-index: 1000;
+    z-index: 500;
     pointer-events: none;
     display: flex;
     flex-direction: column;
