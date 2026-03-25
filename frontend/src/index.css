@@ -520,6 +520,28 @@ main { flex: 1; display: flex; overflow: hidden; }
   font-size: .68rem; color: var(--muted);
 }
 
+/* ── Analysis info overlay card ────────────────────────── */
+.analysis-info-group {
+  position: absolute;
+  top: 1.25rem;
+  right: 1.25rem;
+  z-index: 500;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 320px; /* Specific width for Desktop */
+}
+
+.analysis-info-group > div {
+  pointer-events: auto;
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.6rem;
+}
+
 /* ── Stats dashboard ─────────────────────────────────────── */
 .stats-container {
   flex: 1; overflow-y: auto;
@@ -752,16 +774,38 @@ main { flex: 1; display: flex; overflow: hidden; }
   }
 
   /* History Sidebar */
+  .legend {
+    display: none;
+  }
+
   .sidebar {
     width: 100%;
     flex: 0 0 auto;
-    max-height: 40vh;
+    max-height: 25vh;
     min-height: 0;
     display: flex;
     flex-direction: column;
     border-right: none;
     border-bottom: 1px solid var(--border);
     overflow: hidden;
+  }
+
+  .list-header {
+    padding: 0.5rem 0.75rem;
+  }
+
+  .filter-controls {
+    padding: 0.5rem;
+    gap: 0.4rem;
+  }
+
+  .date-filter-row {
+    font-size: 0.72rem;
+    gap: 0.3rem;
+  }
+
+  .date-group label {
+     font-size: 0.65rem;
   }
   
   .event-list {
@@ -780,34 +824,28 @@ main { flex: 1; display: flex; overflow: hidden; }
   }
   
   .analysis-info-group {
-    position: absolute;
     bottom: 1rem;
     left: 1rem;
     right: 1rem;
-    z-index: 500;
-    pointer-events: none;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
+    width: auto;
   }
 
   .analysis-info-group > div {
-    pointer-events: auto;
-    background: rgba(15, 23, 42, 0.92) !important;
-    backdrop-filter: blur(8px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    background: rgba(15, 23, 42, 0.96) !important;
   }
-  
+
   .analysis-panel {
     width: 100%;
     flex: 0 0 auto;
-    max-height: 35vh;
+    height: auto;
+    max-height: none;
     min-height: 0;
     display: flex;
     flex-direction: column;
+    gap: 0.4rem;
     border-right: none;
     border-bottom: 1px solid var(--border);
-    overflow-y: auto;
+    overflow-y: visible;
   }
 
   /* Map wrappers */

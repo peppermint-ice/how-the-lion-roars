@@ -218,12 +218,12 @@ export default function AnalysisView({ sequences, cities, initialCity, onBack,
           <h2 className="analysis-title">Safety Analysis</h2>
           {onBack && <button className="back-btn" onClick={onBack}>← History</button>}
         </div>
-        <p className="analysis-desc" style={{ marginBottom: '.5rem' }}>
+        <p className="analysis-desc" style={{ marginBottom: '.2rem' }}>
           Identify early warnings that are <strong>least likely</strong> to mean an alert in your city. 
           High scores (Red) indicate that a warning in that region usually means you DON'T have to go to the shelter.
         </p>
         {targetCity && (
-          <p style={{ fontSize: '0.72rem', color: 'var(--muted)', marginTop: 0, marginBottom: '1.5rem' }}>
+          <p style={{ fontSize: '0.72rem', color: 'var(--muted)', marginTop: 0, marginBottom: '.5rem' }}>
             Showing regions with {Math.max(3, Math.round(hitCount * 0.1))} or more shared warnings (≥10% of {targetCity.en || targetCity.he}'s total alarms).
           </p>
         )}
@@ -273,17 +273,7 @@ export default function AnalysisView({ sequences, cities, initialCity, onBack,
           </div>
         )}
 
-        {/* Color scale */}
-        {targetCity && (
-          <div className="scale-legend">
-            <span className="mode-label" style={{ marginBottom: '.15rem' }}>Probability of NO SHELTER</span>
-            <div className="scale-bar" />
-            <div className="threshold-ticks">
-               <span>{Math.round(scaleBounds.min * 100)}%</span>
-               <span>{Math.round(scaleBounds.max * 100)}%</span>
-            </div>
-          </div>
-        ) || (
+        {!targetCity && (
           <div className="analysis-placeholder" style={{ marginTop: '2rem', textAlign: 'center' }}>
             Select a city using the map or the search bar
           </div>
