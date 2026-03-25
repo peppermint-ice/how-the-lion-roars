@@ -16,14 +16,3 @@ frontend/node_modules/
 .idea/
 .vscode/
 
-# Ignore massive data files (optional, remove if you want them versioned)
-!data.json
-!update_*.json
-!azakot_source.csv
-!azakot_heb.json
-!cities.json
-!package.json
-!frontend/package.json
-!frontend/package-lock.json
-!frontend/public/data.json
-!frontend/public/polygons.json

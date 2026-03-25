@@ -1,4 +1,5 @@
 {
+  "name": "how-the-lion-roars",
   "dependencies": {
     "leaflet": "^1.9.4",
     "lucide-react": "^0.577.0",
