@@ -212,6 +212,10 @@ export default function App() {
           <button className={`nav-btn ${activeView === 'about' ? 'active' : ''}`} onClick={() => { setActiveView('about'); setIsMenuOpen(false); }}>
             <Info size={14} /> About
           </button>
+
+          <div className="mobile-header-stats">
+            <span>{sequences.length} attacks · {nPre} early warnings · {nStd} unexpected</span>
+          </div>
         </nav>
         <div className="header-info">
           <span>{sequences.length} attacks · {nPre} early warnings · {nStd} unexpected</span>
