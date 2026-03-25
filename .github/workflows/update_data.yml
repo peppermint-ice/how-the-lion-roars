@@ -1,9 +1,9 @@
-name: Update Data
+name: Daily Database Update
 
 on:
   schedule:
-    - cron: '0 * * * *' # Every hour
-  workflow_dispatch: # Allow manual trigger
+    - cron: '30 20 * * *' # 10:30 PM UTC (aprox 11:30 PM Israel depending on DST)
+  workflow_dispatch: 
 
 jobs:
   update:
@@ -23,12 +23,12 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run update script
-        run: python update_db.py
+        run: python automate_db_update.py
 
       - name: Commit and push changes
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add data.json frontend/public/data.json azakot_heb.json azakot_source.csv update_*.json
-          git commit -m "Automated data update [skip ci]" || echo "No changes to commit"
+          git add history_processing/*.csv history_processing/*.json frontend/public/shelter_sessions.json
+          git commit -m "Automated database update [skip ci]" || echo "No changes to commit"
           git push

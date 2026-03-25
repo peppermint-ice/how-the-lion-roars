@@ -4,6 +4,7 @@ import io
 import json
 import time
 import datetime
+import os
 from collections import defaultdict
 
 PATHS_FILE = r"utils/paths.json"
@@ -12,7 +13,7 @@ def load_csv_url():
     with open(PATHS_FILE, "r", encoding="utf-8") as f:
         return json.load(f).get("alarms.csv")
 
-def download_tzeva_data(start_id, end_id):
+def download_tzeva_data(start_id, end_id, append=False):
     csv_url = load_csv_url()
     print(f"Fetching alarms.csv to map origins...")
     response = requests.get(csv_url)
@@ -39,17 +40,24 @@ def download_tzeva_data(start_id, end_id):
     print(f"Mapped origins for {len(id_to_origin)} IDs.")
     
     output_path = r"history_processing/tzevaadom_alerts.csv"
-    print(f"Downloading Tzeva Adom data and writing to {output_path}...")
     
-    # Threat mapping
-    # 0 = Red Alert (Missiles) -> Category 1
-    # 5 = Hostile Aircraft (UAV) -> Category 2
-    # 2 = Terrorist Infiltration -> DISMISS
+    # If appending, load existing IDs to avoid duplicates
+    existing_ids = set()
+    if append and os.path.exists(output_path):
+        with open(output_path, 'r', encoding='utf-8-sig') as f:
+            r = csv.DictReader(f)
+            for row in r:
+                existing_ids.add(str(row['id']))
+
+    mode = 'a' if append else 'w'
+    print(f"Downloading Tzeva Adom data ({mode}) and writing to {output_path}...")
+    
     THREAT_TO_CAT = {0: 1, 5: 2}
     
-    with open(output_path, 'w', encoding='utf-8-sig', newline='') as f:
+    with open(output_path, mode, encoding='utf-8-sig', newline='') as f:
         writer = csv.writer(f)
-        writer.writerow(['time', 'city', 'id', 'category', 'origin'])
+        if not append:
+            writer.writerow(['time', 'city', 'id', 'category', 'origin'])
         
         total = end_id - start_id + 1
         processed = 0
@@ -57,8 +65,11 @@ def download_tzeva_data(start_id, end_id):
         alert_count = 0
         
         for i in range(start_id, end_id + 1):
-            processed += 1
             cid = str(i)
+            if append and cid in existing_ids:
+                continue
+
+            processed += 1
             if processed % 50 == 0:
                 print(f"Processing ID {cid} ({processed}/{total}). Total alerts so far: {alert_count}")
             
@@ -72,10 +83,9 @@ def download_tzeva_data(start_id, end_id):
                 
                 for alert in data.get('alerts', []):
                     threat = alert.get('threat')
-                    if threat not in THREAT_TO_CAT: continue # Skip terrorists and other threats
+                    if threat not in THREAT_TO_CAT: continue
                     
                     category = THREAT_TO_CAT[threat]
-                    # Convert unix timestamp to readable string
                     alert_time = datetime.datetime.fromtimestamp(alert['time']).strftime('%Y-%m-%d %H:%M:%S')
                     
                     for city in alert.get('cities', []):
@@ -83,8 +93,7 @@ def download_tzeva_data(start_id, end_id):
                         alert_count += 1
                 
                 success_count += 1
-                # Constant polite delay
-                time.sleep(0.05)
+                time.sleep(0.5)
                 
             except Exception as e:
                 print(f"Error fetching ID {cid}: {e}")

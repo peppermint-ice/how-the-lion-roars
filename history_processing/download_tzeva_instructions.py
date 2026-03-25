@@ -23,32 +23,48 @@ def load_city_map():
             
     return id_to_name, all_cities
 
-def download_instructions(start_id, end_id):
+def download_instructions(start_id, end_id, append=False, max_time=None):
     id_to_name, all_cities = load_city_map()
     
     ew_path = r"history_processing/tzevaadom_early_warnings.csv"
     ee_path = r"history_processing/tzevaadom_event_ended.csv"
     
-    print(f"Downloading instructions and writing to {ew_path} and {ee_path}...")
+    # If appending, load existing IDs to avoid duplicates
+    existing_ids = set()
+    if append:
+        for p in [ew_path, ee_path]:
+            if os.path.exists(p):
+                with open(p, 'r', encoding='utf-8-sig') as f:
+                    r = csv.DictReader(f)
+                    for row in r:
+                        existing_ids.add(str(row['id']))
+
+    mode = 'a' if append else 'w'
+    print(f"Downloading instructions ({mode}) and writing to {ew_path} and {ee_path}...")
     
-    with open(ew_path, 'w', encoding='utf-8-sig', newline='') as f1, \
-         open(ee_path, 'w', encoding='utf-8-sig', newline='') as f2:
+    max_inst_time = datetime.datetime(2000, 1, 1)
+
+    with open(ew_path, mode, encoding='utf-8-sig', newline='') as f1, \
+         open(ee_path, mode, encoding='utf-8-sig', newline='') as f2:
         
         ew_writer = csv.writer(f1)
         ee_writer = csv.writer(f2)
         
-        header = ['time', 'city', 'id', 'category', 'origin']
-        ew_writer.writerow(header)
-        ee_writer.writerow(header)
+        if not append:
+            header = ['time', 'city', 'id', 'category', 'origin']
+            ew_writer.writerow(header)
+            ee_writer.writerow(header)
         
         processed = 0
         total = end_id - start_id + 1
         
         for i in range(start_id, end_id + 1):
-            if i == 195: continue # User request: Skip 195
-            
-            processed += 1
+            if i == 195: continue
             cid = str(i)
+            if append and cid in existing_ids:
+                continue
+
+            processed += 1
             if processed % 50 == 0:
                 print(f"Processing ID {cid} ({processed}/{total})...")
             
@@ -59,7 +75,12 @@ def download_instructions(start_id, end_id):
                 
                 data = r.json()
                 title = data.get('titleEn', '')
-                time_str = datetime.datetime.fromtimestamp(data['time']).strftime('%Y-%m-%d %H:%M:%S')
+                inst_time_obj = datetime.datetime.fromtimestamp(data['time'])
+                time_str = inst_time_obj.strftime('%Y-%m-%d %H:%M:%S')
+                max_inst_time = max(max_inst_time, inst_time_obj)
+
+                if max_time and inst_time_obj > max_time:
+                    break
                 
                 # Category Detection
                 category = None
@@ -70,7 +91,6 @@ def download_instructions(start_id, end_id):
                     category = 13
                     writer = ee_writer
                 else:
-                    # Default: try to infer from content or just use 14 if it's an instruction
                     if data.get('instruction'):
                         category = 14
                         writer = ew_writer
@@ -80,7 +100,6 @@ def download_instructions(start_id, end_id):
                 # City List
                 target_cities = []
                 if i in [194, 196] or 10000000 in data.get('citiesIds', []):
-                    # Country-wide
                     target_cities = all_cities
                 else:
                     for city_id in data.get('citiesIds', []):
@@ -90,12 +109,16 @@ def download_instructions(start_id, end_id):
                 for city in target_cities:
                     writer.writerow([time_str, city, cid, category, ""])
                 
-                time.sleep(0.05)
+                time.sleep(0.5)
                 
             except Exception as e:
                 print(f"Error for ID {cid}: {e}")
                 
     print("Done generating instruction CSVs.")
+    return max_inst_time
+
+if __name__ == "__main__":
+    download_instructions(194, 1122)
 
 if __name__ == "__main__":
     download_instructions(194, 1122)

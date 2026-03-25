@@ -230,12 +230,15 @@ export default function App() {
             <section>
               <h3>Methodology</h3>
               <p>
-                Data is automatically extracted. I parse Pikud HaOref official Telegram channel for early warnings and use Yuval Harpaz's alarms project for the alerts data.
+                Data is automatically extracted. I use Tzeva Adom's API for early warnings and use <a href="https://github.com/yuvalharpaz/alarms">Yuval Harpaz's alarms project</a> for the alerts data, for that his source identification system is brilliant. The project is updated every hour, although there might be delays. <b>For real-time life-saving information, always refer to the official Pikud HaOref app or website.</b>
               </p>
+              <h3>Project Status</h3>
+              <p>It is an alpha version, so feel free to report any issues or suggestions to this email: howthelionroars@protonmail.com. This project is 100% vibecoded, so, well. Don't trust it too much. And please never take any decisions based on this project. It can be literally deadly.</p>
             </section>
             <section>
               <h3>Credits</h3>
               <p>Created by Dmitrii Usenko, 2026.</p>
+              <p>If you like me and speak Russian, you can follow me on Telegram: <a href="https://t.me/zahav">Ад, Израиль и помидоры черри</a>. Special thanks to my friend Grisha for the original idea behind this project.</p>
             </section>
           </div>
         </div>
