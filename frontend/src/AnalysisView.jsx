@@ -23,19 +23,17 @@ function MapFitter({ markers }) {
   return null;
 }
 
-// scoreColor: normalises score to [threshold, 1.0] → green→yellow→orange→red
-// Power-2 curve gives more colour diversity at the HIGH end.
-
-// Normalises so threshold→green, 1.0→red.  Power-2 curve stretches the high end so
-// cities with scores between 0.8–1.0 spread across a wide colour range.
-function scoreColor(score, threshold) {
-  const lo = threshold ?? 0.10;
-  const n = Math.max(0, Math.min(1, (score - lo) / Math.max(0.001, 1 - lo)));
-  const t = n * n;   // exponent 2: more colour diversity near 1.0
-  // Green (hue 120) → Yellow (60) → Orange (30) → Red (0)
-  const H = 120 * (1 - t);
-  const S = 80 + t * 15;
-  const L = 44 - t * 8;
+// scoreColor: normalises score to [minVal, maxVal] → red→orange→yellow→green
+function scoreColor(score, minVal = 0, maxVal = 1.0) {
+  const lo = minVal;
+  const hi = Math.max(lo + 0.01, maxVal); // Ensure hi > lo
+  const n = Math.max(0, Math.min(1, (score - lo) / (hi - lo)));
+  // Use a linear or slightly curved transition. 
+  // Let t=0 (min safety) be Red (H=0), t=1 (max safety) be Green (H=120)
+  const t = n; 
+  const H = 120 * t;
+  const S = 80 + (1 - t) * 15;
+  const L = 44 - (1 - t) * 8;
   return `hsl(${H.toFixed(1)}, ${S.toFixed(0)}%, ${L.toFixed(0)}%)`;
 }
 
@@ -108,26 +106,6 @@ export default function AnalysisView({ sequences, cities, initialCity, onBack,
     [targetCity, sequences]
   );
 
-  // Apply threshold filter
-  const visible = useMemo(() => {
-    const r = {};
-    Object.entries(correlations).forEach(([id, obj]) => { 
-      // Filter by probability (slider) and fixed minimal significance (>= 2 events)
-      if (obj.score >= threshold && obj.denominator >= 2) r[id] = obj.score; 
-    });
-    return r;
-  }, [correlations, threshold]);
-
-  // Markers for point mode
-  const markers = useMemo(() => {
-    if (!targetCity) return [];
-    const pts = [{ ...targetCity, kind: 'target', score: null }];
-    Object.entries(visible).forEach(([id, score]) => {
-      const city = cities[id];
-      if (city?.lat && city?.lng) pts.push({ ...city, kind: 'corr', score });
-    });
-    return pts;
-  }, [targetCity, visible, cities]);
 
   const hitCount = useMemo(() => {
     if (!targetCity) return 0;
@@ -139,6 +117,47 @@ export default function AnalysisView({ sequences, cities, initialCity, onBack,
       return acc + (s.realAlarmCities.includes(sid) ? 1 : 0);
     }, 0);
   }, [targetCity, sequences]);
+
+  // All significant correlations (pass 10% filter)
+  const significant = useMemo(() => {
+    const minDenominator = Math.max(3, hitCount * 0.10);
+    const results = {};
+    Object.entries(correlations).forEach(([id, obj]) => { 
+      if (obj.denominator >= minDenominator) {
+        results[id] = (obj.denominator - obj.numerator) / obj.denominator;
+      }
+    });
+    return results;
+  }, [correlations, hitCount]);
+
+  // Fixed scale bounds for when the city is selected
+  const scaleBounds = useMemo(() => {
+    const scores = Object.values(significant);
+    if (!scores.length) return { min: 0, max: 1 };
+    return { min: Math.min(...scores), max: Math.max(...scores) };
+  }, [significant]);
+
+  // Apply threshold filter (Safety Score: probability of NO alert)
+  const visible = useMemo(() => {
+    const r = {};
+    Object.entries(significant).forEach(([id, safetyScore]) => { 
+      if (safetyScore >= threshold) {
+        r[id] = safetyScore;
+      }
+    });
+    return r;
+  }, [significant, threshold]);
+
+  // Markers for point mode
+  const markers = useMemo(() => {
+    if (!targetCity) return [];
+    const pts = [{ ...targetCity, kind: 'target', score: null }];
+    Object.entries(visible).forEach(([id, score]) => {
+      const city = cities[id];
+      if (city?.lat && city?.lng) pts.push({ ...city, kind: 'corr', score });
+    });
+    return pts;
+  }, [targetCity, visible, cities]);
 
   const earlyAlarmCount = useMemo(() => {
     if (!targetCity) return 0;
@@ -184,7 +203,11 @@ export default function AnalysisView({ sequences, cities, initialCity, onBack,
     }
     const score = visible[id];
     if (score === undefined) return null;  // don't render this polygon
-    return { color: scoreColor(score), fillColor: scoreColor(score), fillOpacity: 0.3, weight: 1.5 };
+    return { 
+      color: scoreColor(score, scaleBounds.min, scaleBounds.max), 
+      fillColor: scoreColor(score, scaleBounds.min, scaleBounds.max), 
+      fillOpacity: 0.3, weight: 1.5 
+    };
   };
 
   return (
@@ -192,13 +215,18 @@ export default function AnalysisView({ sequences, cities, initialCity, onBack,
       {/* ── Left panel ── */}
       <div className="analysis-panel">
         <div className="analysis-panel-header">
-          <h2 className="analysis-title">City Correlation</h2>
+          <h2 className="analysis-title">Safety Analysis</h2>
           {onBack && <button className="back-btn" onClick={onBack}>← History</button>}
         </div>
-        <p className="analysis-desc">
-          Select a city and see how the early warnings in other places correlate with actual alerts in it.
-          Obviously, the closer the cities are to each other, the higher the correlation. But not always.
+        <p className="analysis-desc" style={{ marginBottom: '.5rem' }}>
+          Identify early warnings that are <strong>least likely</strong> to mean an alert in your city. 
+          High scores (Red) indicate that a warning in that region usually means you DON'T have to go to the shelter.
         </p>
+        {targetCity && (
+          <p style={{ fontSize: '0.72rem', color: 'var(--muted)', marginTop: 0, marginBottom: '1.5rem' }}>
+            Showing regions with {Math.max(3, Math.round(hitCount * 0.1))} or more shared warnings (≥10% of {targetCity.en || targetCity.he}'s total alarms).
+          </p>
+        )}
 
         {/* Search box */}
         <div className="search-wrap">
@@ -226,7 +254,7 @@ export default function AnalysisView({ sequences, cities, initialCity, onBack,
 
         <div className="threshold-wrap">
           <div className="threshold-header">
-            <span className="threshold-question">Will I have to go to the shelter with the next early warning if the early warning is shared with these cities?</span>
+            <span className="threshold-question">Will I likely NOT have to go to the shelter if the early warning is shared with these cities?</span>
             <span className="threshold-value">{Math.round(threshold * 100)}%</span>
           </div>
           <input
@@ -248,11 +276,11 @@ export default function AnalysisView({ sequences, cities, initialCity, onBack,
         {/* Color scale */}
         {targetCity && (
           <div className="scale-legend">
-            <span className="mode-label" style={{ marginBottom: '.15rem' }}>Rate of co-warning</span>
+            <span className="mode-label" style={{ marginBottom: '.15rem' }}>Probability of NO SHELTER</span>
             <div className="scale-bar" />
             <div className="threshold-ticks">
-               <span>0%</span>
-               <span>100%</span>
+               <span>{Math.round(scaleBounds.min * 100)}%</span>
+               <span>{Math.round(scaleBounds.max * 100)}%</span>
             </div>
           </div>
         ) || (
@@ -288,7 +316,7 @@ export default function AnalysisView({ sequences, cities, initialCity, onBack,
             if (isTarget) {
               options = { color: '#2563eb', fillColor: '#3b82f6', fillOpacity: 0.2, weight: 2.5 };
             } else if (score !== undefined) {
-              const col = scoreColor(score, 0.10);
+              const col = scoreColor(score, scaleBounds.min, scaleBounds.max);
               options = { color: col, fillColor: col, fillOpacity: 0.3, weight: 1.5 };
             }
 
@@ -306,7 +334,7 @@ export default function AnalysisView({ sequences, cities, initialCity, onBack,
                     <strong>{city.en || city.ru || city.he}</strong><br />
                     <span style={{ color: '#888' }}>{city.he}</span><br />
                     <em>
-                      Of {correlations[id].denominator} shared early warnings, {correlations[id].numerator} ({Math.round(score * 100)}%) led to an alert in {targetCity.en || targetCity.ru || targetCity.he}
+                      Of {correlations[id].denominator} shared early warnings, {correlations[id].denominator - correlations[id].numerator} ({Math.round(score * 100)}%) did NOT lead to an alert in {targetCity.en || targetCity.ru || targetCity.he}
                     </em>
                   </Popup>
                 )}

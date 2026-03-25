@@ -250,7 +250,7 @@ export default function App() {
             <section>
               <h3>Credits</h3>
               <p>Created by Dmitrii Usenko, 2026.</p>
-              <p>If you like me and speak Russian, you can follow me on Telegram: <a href="https://t.me/zahav">Ад, Израиль и помидоры черри</a>. Special thanks to my friend Grisha for the original idea behind this project.</p>
+              <p>If you like me and speak Russian, you can follow me on Telegram: <a href="https://t.me/zachav">Ад, Израиль и помидоры черри</a>. Special thanks to my friend Grisha for the original idea behind this project.</p>
             </section>
           </div>
         </div>

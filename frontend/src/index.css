@@ -459,7 +459,7 @@ main { flex: 1; display: flex; overflow: hidden; }
 .threshold-slider {
   -webkit-appearance: none; appearance: none;
   width: 100%; height: 4px; border-radius: 2px;
-  background: linear-gradient(to right, hsl(120,80%,44%), hsl(60,90%,44%), hsl(30,92%,44%), hsl(0,95%,36%));
+  background: linear-gradient(to right, hsl(0,95%,36%), hsl(30,92%,44%), hsl(60,90%,44%), hsl(120,80%,44%));
   outline: none; cursor: pointer;
 }
 .threshold-slider::-webkit-slider-thumb {
@@ -506,13 +506,13 @@ main { flex: 1; display: flex; overflow: hidden; }
 .scale-bar {
   height: 12px; border-radius: 6px;
   background: linear-gradient(to right,
-    hsl(128,85%,40%),
-    hsl(90,90%,42%),
-    hsl(55,95%,45%),
-    hsl(30,95%,45%),
-    hsl(10,95%,42%),
+    hsl(345,80%,28%),
     hsl(0,90%,38%),
-    hsl(345,80%,28%)
+    hsl(10,95%,42%),
+    hsl(30,95%,45%),
+    hsl(55,95%,45%),
+    hsl(90,90%,42%),
+    hsl(128,85%,40%)
   );
 }
 .scale-labels {
