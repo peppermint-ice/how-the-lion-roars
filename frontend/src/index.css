@@ -789,6 +789,7 @@ main { flex: 1; display: flex; overflow: hidden; }
   .stats-container {
     flex: 1;
     padding: 0.75rem;
+    padding-bottom: 5rem;
     display: flex;
     flex-direction: column;
     gap: 1rem;
@@ -819,7 +820,7 @@ main { flex: 1; display: flex; overflow: hidden; }
   }
 
   .stats-map-panel {
-    height: 350px;
+    height: 400px;
     border-radius: 0 0 0.6rem 0.6rem;
   }
 
