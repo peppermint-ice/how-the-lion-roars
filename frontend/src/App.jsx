@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { MapContainer, TileLayer, Polygon, Popup, useMap } from 'react-leaflet';
-import { AlertCircle, BarChart2, LayoutDashboard, Info } from 'lucide-react';
+import { AlertCircle, BarChart2, LayoutDashboard, Info, Menu, X } from 'lucide-react';
 import AnalysisView from './AnalysisView.jsx';
 import StatsView from './StatsView.jsx';
 
@@ -83,6 +83,7 @@ export default function App() {
   const [analysisCity, setAnalysisCity] = useState(null);
   const [visibleCount, setVisibleCount] = useState(10);
   const [activeWave, setActiveWave]       = useState(null);
+  const [isMenuOpen, setIsMenuOpen]       = useState(false);
 
   // --- Filters ---
   const [cityFilter, setCityFilter]     = useState(null);
@@ -109,6 +110,7 @@ export default function App() {
     setActiveView('analysis');
     setSelectedId(null);
     setVisibleCount(10);
+    setIsMenuOpen(false);
   };
 
   // Reset active wave when selection changes
@@ -193,18 +195,21 @@ export default function App() {
   return (
     <div className="app-container">
       <header>
+        <button className="menu-toggle" onClick={() => setIsMenuOpen(!isMenuOpen)}>
+          {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+        </button>
         <h1>How The Lion Roars</h1>
-        <nav className="header-nav">
-          <button className={`nav-btn ${activeView === 'history' ? 'active' : ''}`} onClick={() => setActiveView('history')}>
+        <nav className={`header-nav ${isMenuOpen ? 'open' : ''}`}>
+          <button className={`nav-btn ${activeView === 'history' ? 'active' : ''}`} onClick={() => { setActiveView('history'); setIsMenuOpen(false); }}>
             <AlertCircle size={14} /> Alert History
           </button>
-          <button className={`nav-btn ${activeView === 'analysis' ? 'active' : ''}`} onClick={() => setActiveView('analysis')}>
+          <button className={`nav-btn ${activeView === 'analysis' ? 'active' : ''}`} onClick={() => { setActiveView('analysis'); setIsMenuOpen(false); }}>
             <BarChart2 size={14} /> City Analysis
           </button>
-          <button className={`nav-btn ${activeView === 'stats' ? 'active' : ''}`} onClick={() => setActiveView('stats')}>
+          <button className={`nav-btn ${activeView === 'stats' ? 'active' : ''}`} onClick={() => { setActiveView('stats'); setIsMenuOpen(false); }}>
             <LayoutDashboard size={14} /> Statistics
           </button>
-          <button className={`nav-btn ${activeView === 'about' ? 'active' : ''}`} onClick={() => setActiveView('about')}>
+          <button className={`nav-btn ${activeView === 'about' ? 'active' : ''}`} onClick={() => { setActiveView('about'); setIsMenuOpen(false); }}>
             <Info size={14} /> About
           </button>
         </nav>

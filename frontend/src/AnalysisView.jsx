@@ -223,7 +223,100 @@ export default function AnalysisView({ sequences, cities, initialCity, onBack,
           )}
         </div>
 
-        {/* Target info and trivia group for easier mobile positioning */}
+
+        <div className="threshold-wrap">
+          <div className="threshold-header">
+            <span className="threshold-question">Will I have to go to the shelter with the next early warning if the early warning is shared with these cities?</span>
+            <span className="threshold-value">{Math.round(threshold * 100)}%</span>
+          </div>
+          <input
+            type="range"
+            className="threshold-slider"
+            min="0" max="100" step="1"
+            value={Math.round(threshold * 100)}
+            onChange={e => setThreshold(parseInt(e.target.value) / 100)}
+          />
+          <div className="threshold-ticks"><span>No</span><span>Yes</span></div>
+        </div>
+
+        {!polygons && !polyLoading && (
+          <div className="zones-warning">
+            ⚠ No polygon data available.
+          </div>
+        )}
+
+        {/* Color scale */}
+        {targetCity && (
+          <div className="scale-legend">
+            <span className="mode-label" style={{ marginBottom: '.15rem' }}>Rate of co-warning</span>
+            <div className="scale-bar" />
+            <div className="threshold-ticks">
+               <span>0%</span>
+               <span>100%</span>
+            </div>
+          </div>
+        ) || (
+          <div className="analysis-placeholder" style={{ marginTop: '2rem', textAlign: 'center' }}>
+            Select a city using the map or the search bar
+          </div>
+        )}
+
+      </div>
+
+      {/* ── Map ── */}
+      <div className="analysis-map-wrap">
+        <MapContainer
+          center={[31.5, 34.9]}
+          zoom={8}
+          style={{ height: '100%', width: '100%', position: 'absolute', top: 0, left: 0 }}
+        >
+          <TileLayer
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          />
+
+          {/* Polygons ── */}
+          {polygons && Object.entries(polygons).map(([id, positions]) => {
+            const city = cities[id];
+            const isTarget = targetCity && String(targetCity.id) === String(id);
+            const score = visible[id];
+            
+            // Standard "neutral" style for all clickable cities
+            let options = { color: 'rgba(148, 163, 184, 0.5)', fillColor: 'rgba(148, 163, 184, 0.2)', weight: 1, fillOpacity: 0.3 };
+            
+            // Highlight if it's the target or a correlated city
+            if (isTarget) {
+              options = { color: '#2563eb', fillColor: '#3b82f6', fillOpacity: 0.2, weight: 2.5 };
+            } else if (score !== undefined) {
+              const col = scoreColor(score, 0.10);
+              options = { color: col, fillColor: col, fillOpacity: 0.3, weight: 1.5 };
+            }
+
+            return (
+              <Polygon
+                key={`poly-${id}`}
+                positions={positions}
+                pathOptions={options}
+                eventHandlers={{
+                  click: () => { if (city && !targetCity) handleSelect(city); }
+                }}
+              >
+                {city && score !== undefined && (
+                  <Popup>
+                    <strong>{city.en || city.ru || city.he}</strong><br />
+                    <span style={{ color: '#888' }}>{city.he}</span><br />
+                    <em>
+                      Of {correlations[id].denominator} shared early warnings, {correlations[id].numerator} ({Math.round(score * 100)}%) led to an alert in {targetCity.en || targetCity.ru || targetCity.he}
+                    </em>
+                  </Popup>
+                )}
+              </Polygon>
+            );
+          })}
+
+          <MapFitter markers={markers} />
+        </MapContainer>
+
         {targetCity && (
           <div className="analysis-info-group">
             <div className="target-info">
@@ -258,96 +351,6 @@ export default function AnalysisView({ sequences, cities, initialCity, onBack,
           </div>
         )}
 
-        <div className="threshold-wrap">
-          <div className="threshold-header">
-            <span className="threshold-question">Will I have to go to the shelter with the next early warning if the early warning is shared with these cities?</span>
-            <span className="threshold-value">{Math.round(threshold * 100)}%</span>
-          </div>
-          <input
-            type="range"
-            className="threshold-slider"
-            min="0" max="100" step="1"
-            value={Math.round(threshold * 100)}
-            onChange={e => setThreshold(parseInt(e.target.value) / 100)}
-          />
-          <div className="threshold-ticks"><span>No</span><span>Yes</span></div>
-        </div>
-
-        {!polygons && !polyLoading && (
-          <div className="zones-warning">
-            ⚠ No polygon data available.
-          </div>
-        )}
-
-        {/* Color scale */}
-        {targetCity && (
-          <div className="scale-legend">
-            <span className="mode-label" style={{ marginBottom: '.15rem' }}>Rate of co-warning</span>
-            <div className="scale-bar" />
-            <div className="threshold-ticks">
-               <span>0%</span>
-               <span>100%</span>
-            </div>
-          </div>
-        )}
-
-        {!targetCity && <div className="analysis-placeholder">← Search for a city to begin</div>}
-      </div>
-
-      {/* ── Map ── */}
-      <div className="analysis-map-wrap">
-        <MapContainer
-          center={[31.5, 34.9]}
-          zoom={8}
-          style={{ height: '100%', width: '100%', position: 'absolute', top: 0, left: 0 }}
-        >
-          <TileLayer
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          />
-
-          {/* Polygons ── */}
-          {polygons && targetCity && (() => {
-            const targetKey = String(targetCity.id);
-            return (
-              <>
-                {targetKey in polygons && (
-                  <Polygon
-                    key={`target-${targetKey}`}
-                    positions={polygons[targetKey]}
-                    pathOptions={{ color: '#2563eb', fillColor: '#3b82f6', fillOpacity: 0.2, weight: 2.5 }}
-                  />
-                )}
-                {Object.entries(visible).map(([id, score]) => {
-                  if (!(id in polygons)) return null;
-                  return (
-                    <Polygon
-                      key={`poly-${id}`}
-                      positions={polygons[id]}
-                      pathOptions={{ color: scoreColor(score, 0.10), fillColor: scoreColor(score, 0.10), fillOpacity: 0.3, weight: 1.5 }}
-                    >
-                      {cities[id] && (
-                        <Popup>
-                          <strong>{cities[id].en || cities[id].ru || cities[id].he}</strong><br />
-                          <span style={{ color: '#888' }}>{cities[id].he}</span><br />
-                          <em>
-                            Of {correlations[id].denominator} shared early warnings, {correlations[id].numerator} ({Math.round(score * 100)}%) led to an alert in {targetCity.en || targetCity.ru || targetCity.he}
-                          </em>
-                        </Popup>
-                      )}
-                    </Polygon>
-                  );
-                })}
-              </>
-            );
-          })()}
-
-          <MapFitter markers={markers} />
-        </MapContainer>
-
-        {!targetCity && (
-          <div className="map-placeholder-overlay">Select a city to begin</div>
-        )}
       </div>
     </div>
   );

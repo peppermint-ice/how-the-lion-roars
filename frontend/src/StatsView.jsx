@@ -415,7 +415,7 @@ export default function StatsView({ sequences, cities, polygons }) {
       <div className="stats-section">
         <div className="stats-section-header">
           <h2 className="stats-title">Early Warning Efficiency</h2>
-          <span className="stats-subtitle">Share of early warnings that lead to alarm</span>
+          <span className="stats-subtitle">Share of early warnings that lead to alerts</span>
           <ViewToggle view={effView} onChange={setEffView} />
         </div>
         <div className="stats-body">
