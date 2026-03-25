@@ -10,8 +10,9 @@ const MapController = ({ markers }) => {
   useEffect(() => {
     map.invalidateSize();
     if (markers && markers.length > 0) {
-      const lats = markers.map(m => m.lat);
-      const lngs = markers.map(m => m.lng);
+      const lats = markers.map(m => m.lat).filter(Boolean);
+      const lngs = markers.map(m => m.lng).filter(Boolean);
+      if (!lats.length || !lngs.length) return;
       const pad = 0.5;
       map.fitBounds(
         [[Math.min(...lats) - pad, Math.min(...lngs) - pad],
@@ -77,6 +78,7 @@ export default function App() {
   const [sequences, setSequences]   = useState([]);
   const [cities, setCities]         = useState({});
   const [loading, setLoading]       = useState(true);
+  const [loadError, setLoadError]   = useState(null);
   const [selectedId, setSelectedId] = useState(null);
   const [iranOnly, setIranOnly] = useState(false);
   const [activeView, setActiveView] = useState('history');
@@ -153,11 +155,18 @@ export default function App() {
       setSequences(sorted);
       if (sorted.length > 0) setSelectedId(sorted[0].id);
       setLoading(false);
+    }).catch(err => {
+      setLoadError(err.message);
+      setLoading(false);
     });
   }, []);
 
   const selectedSeq = useMemo(() => sequences.find(s => s.id === selectedId), [sequences, selectedId]);
   const markers     = useMemo(() => computeMarkers(selectedSeq, cities), [selectedSeq, cities]);
+  const activeWaveSet = useMemo(
+    () => activeWave ? new Set(activeWave.city_ids.map(String)) : null,
+    [activeWave]
+  );
 
   const filteredSequences = useMemo(() => {
     return sequences.filter(s => {
@@ -168,7 +177,7 @@ export default function App() {
         const inReal = s.realAlarmCities.includes(strId);
         if (!inPre && !inReal) return false;
       }
-      const sDate = s.startTime.split('T')[0];
+      const sDate = (s.startTime || '').split('T')[0];
       if (dateFrom && sDate < dateFrom) return false;
       if (dateTo && sDate > dateTo) return false;
       return true;
@@ -192,6 +201,7 @@ export default function App() {
     ).slice(0, 50);
   }, [cityQuery, allCitiesList]);
 
+  if (loadError) return <div className="loading">Failed to load data: {loadError}</div>;
   if (loading) return <div className="loading">Loading...</div>;
 
   const nPre = sequences.filter(s => s.type === 'PREEMPTIVE_SEQUENCE').length;
@@ -390,7 +400,7 @@ export default function App() {
               const poly = polygons[String(m.id)];
               if (!poly) return null;
               
-              const isActiveInWave = activeWave && activeWave.city_ids.map(String).includes(String(m.id));
+              const isActiveInWave = activeWaveSet && activeWaveSet.has(String(m.id));
               const style = DOT_COLORS[m.kind];
               
               return (
