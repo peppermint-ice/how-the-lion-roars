@@ -230,7 +230,7 @@ export default function App() {
             <section>
               <h3>Methodology</h3>
               <p>
-                Data is automatically extracted. I use Tzeva Adom's API for early warnings and use <a href="https://github.com/yuvalharpaz/alarms">Yuval Harpaz's alarms project</a> for the alerts data, for that his source identification system is brilliant. The project is updated daily, although there might be delays. <b>For real-time life-saving information, always refer to the official Pikud HaOref app or website.</b>
+                Data is automatically extracted. I use Tzeva Adom's API for early warnings and <a href="https://github.com/yuvalharpaz/alarms">Yuval Harpaz's alarms project</a> for the alerts data, for that his source identification system is brilliant. The project is updated daily, although there might be delays. <b>For real-time life-saving information, always refer to the official Pikud HaOref app or website.</b>
               </p>
               <h3>Project Status</h3>
               <p>It is an alpha version, so feel free to report any issues or suggestions to this email: howthelionroars@protonmail.com. This project is 100% vibecoded, so, well. Don't trust it too much. And please never take any decisions based on this project. It can be literally deadly.</p>
