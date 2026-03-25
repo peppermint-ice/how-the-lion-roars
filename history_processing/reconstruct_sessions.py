@@ -3,8 +3,8 @@ import json
 import os
 import datetime
 
-def load_city_map():
-    with open('cities.json', 'r', encoding='utf-8') as f:
+def load_city_map(path='cities.json'):
+    with open(path, 'r', encoding='utf-8') as f:
         data = json.load(f)
     cities_dict = data.get('cities', {})
     name_to_id = {name: str(info['id']) for name, info in cities_dict.items()}
