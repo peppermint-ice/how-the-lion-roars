@@ -71,7 +71,9 @@ function computeCorrelations(targetId, sequences) {
   
   const result = {};
   Object.keys(bothWarnedCounts).forEach(id => {
-    result[id] = (bothWarnedAndHitCounts[id] || 0) / bothWarnedCounts[id];
+    const num = bothWarnedAndHitCounts[id] || 0;
+    const den = bothWarnedCounts[id];
+    result[id] = { score: num / den, numerator: num, denominator: den };
   });
   return result;
 }
@@ -109,7 +111,10 @@ export default function AnalysisView({ sequences, cities, initialCity, onBack,
   // Apply threshold filter
   const visible = useMemo(() => {
     const r = {};
-    Object.entries(correlations).forEach(([id, s]) => { if (s >= threshold) r[id] = s; });
+    Object.entries(correlations).forEach(([id, obj]) => { 
+      // Filter by probability (slider) and fixed minimal significance (>= 2 events)
+      if (obj.score >= threshold && obj.denominator >= 2) r[id] = obj.score; 
+    });
     return r;
   }, [correlations, threshold]);
 
@@ -127,9 +132,12 @@ export default function AnalysisView({ sequences, cities, initialCity, onBack,
   const hitCount = useMemo(() => {
     if (!targetCity) return 0;
     const sid = String(targetCity.id);
-    return sequences.filter(
-      s => s.type === 'PREEMPTIVE_SEQUENCE' && s.realAlarmCities.includes(sid)
-    ).length;
+    return sequences.reduce((acc, s) => {
+      if (s.attacks) {
+        return acc + s.attacks.filter(a => a.city_ids.map(String).includes(sid)).length;
+      }
+      return acc + (s.realAlarmCities.includes(sid) ? 1 : 0);
+    }, 0);
   }, [targetCity, sequences]);
 
   const earlyAlarmCount = useMemo(() => {
@@ -150,7 +158,7 @@ export default function AnalysisView({ sequences, cities, initialCity, onBack,
     ).length;
   }, [targetCity, sequences]);
 
-  const pctHit = hitCount > 0 ? Math.round(warnedHits / hitCount * 100) : 0;
+  const pctHit = earlyAlarmCount > 0 ? Math.round(warnedHits / earlyAlarmCount * 100) : 0;
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -225,44 +233,44 @@ export default function AnalysisView({ sequences, cities, initialCity, onBack,
                 <span className="city-he-small">{targetCity.he} {targetCity.ar && ` · ${targetCity.ar}`}</span>
               </div>
               {targetCity.ru && targetCity.en && <div className="target-ru">{targetCity.ru}</div>}
-              <div className="target-stats">
-                Mentioned in <strong>{hitCount}</strong> attacks from Iran ·{' '}
-                <strong>{Object.keys(visible).length}</strong> cities shown at ≥{Math.round(threshold * 100)}%
-              </div>
-            </div>
-
-            <div className="city-trivia">
-              <div className="trivia-row">
-                <span className="trivia-label">Alerted</span>
-                <span className="trivia-value">{hitCount} times</span>
-              </div>
-              <div className="trivia-row">
-                <span className="trivia-label">Early warnings</span>
-                <span className="trivia-value">{earlyAlarmCount}</span>
-              </div>
-              <div className="trivia-row">
-                <span className="trivia-label">Warnings → alarm</span>
-                <span className="trivia-value trivia-pct" style={{ color: pctHit >= 50 ? '#f87171' : '#a3e635' }}>
-                  {pctHit}%
-                </span>
+              
+              <div className="city-trivia">
+                <div className="trivia-row">
+                  <span className="trivia-label">Alerted</span>
+                  <span className="trivia-value">{hitCount} times</span>
+                </div>
+                <div className="trivia-row">
+                  <span className="trivia-label">Early warnings</span>
+                  <span className="trivia-value">{earlyAlarmCount}</span>
+                </div>
+                <div className="trivia-row">
+                  <span className="trivia-label">Early warnings that lead to at least one alert</span>
+                  <span className="trivia-value">{warnedHits}</span>
+                </div>
+                <div className="trivia-row">
+                  <span className="trivia-label">Warnings → alert</span>
+                  <span className="trivia-value trivia-pct" style={{ color: pctHit >= 50 ? '#a3e635' : '#f87171' }}>
+                    {pctHit}%
+                  </span>
+                </div>
               </div>
             </div>
           </div>
         )}
 
         <div className="threshold-wrap">
-          <div className="threshold-label">
-            <span>Min correlation</span>
-            <strong>{Math.round(threshold * 100)}%</strong>
+          <div className="threshold-header">
+            <span className="threshold-question">Will I have to go to the shelter with the next early warning if the early warning is shared with these cities?</span>
+            <span className="threshold-value">{Math.round(threshold * 100)}%</span>
           </div>
           <input
             type="range"
             className="threshold-slider"
-            min="10" max="100" step="1"
+            min="0" max="100" step="1"
             value={Math.round(threshold * 100)}
             onChange={e => setThreshold(parseInt(e.target.value) / 100)}
           />
-          <div className="threshold-ticks"><span>10%</span><span>100%</span></div>
+          <div className="threshold-ticks"><span>No</span><span>Yes</span></div>
         </div>
 
         {!polygons && !polyLoading && (
@@ -274,11 +282,11 @@ export default function AnalysisView({ sequences, cities, initialCity, onBack,
         {/* Color scale */}
         {targetCity && (
           <div className="scale-legend">
-            <span className="mode-label" style={{ marginBottom: '.15rem' }}>Correlation</span>
+            <span className="mode-label" style={{ marginBottom: '.15rem' }}>Rate of co-warning</span>
             <div className="scale-bar" />
-            <div className="scale-labels">
-              <span>{Math.round(threshold * 100)}% — low</span>
-              <span>high — 100%</span>
+            <div className="threshold-ticks">
+               <span>0%</span>
+               <span>100%</span>
             </div>
           </div>
         )}
@@ -322,7 +330,9 @@ export default function AnalysisView({ sequences, cities, initialCity, onBack,
                         <Popup>
                           <strong>{cities[id].en || cities[id].ru || cities[id].he}</strong><br />
                           <span style={{ color: '#888' }}>{cities[id].he}</span><br />
-                          <em>{(score * 100).toFixed(0)}% co-warning</em>
+                          <em>
+                            Of {correlations[id].denominator} shared early warnings, {correlations[id].numerator} ({Math.round(score * 100)}%) led to an alert in {targetCity.en || targetCity.ru || targetCity.he}
+                          </em>
                         </Popup>
                       )}
                     </Polygon>

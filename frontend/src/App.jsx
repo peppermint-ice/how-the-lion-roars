@@ -82,6 +82,7 @@ export default function App() {
   const [activeView, setActiveView] = useState('history');
   const [analysisCity, setAnalysisCity] = useState(null);
   const [visibleCount, setVisibleCount] = useState(10);
+  const [activeWave, setActiveWave]       = useState(null);
 
   // --- Filters ---
   const [cityFilter, setCityFilter]     = useState(null);
@@ -109,6 +110,11 @@ export default function App() {
     setSelectedId(null);
     setVisibleCount(10);
   };
+
+  // Reset active wave when selection changes
+  useEffect(() => {
+    setActiveWave(null);
+  }, [selectedId]);
 
   useEffect(() => {
     Promise.all([
@@ -328,6 +334,21 @@ export default function App() {
                       {seq.preAlarmCities.length > 0 && <span className="tag warned">{seq.preAlarmCities.length} warned</span>}
                       {seq.realAlarmCities.length > 0 && <span className="tag alerted">{seq.realAlarmCities.length} alerted</span>}
                     </div>
+
+                    {selectedId === seq.id && seq.attacks && seq.attacks.length > 1 && (
+                      <div className="event-subevents">
+                        {[...seq.attacks].reverse().map((w, idx) => (
+                          <div 
+                            key={idx} 
+                            className={`event-wave-item ${activeWave === w ? 'active' : ''}`}
+                            onClick={(e) => { e.stopPropagation(); setActiveWave(activeWave === w ? null : w); }}
+                          >
+                            <span className="wave-time">{new Date(w.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            <span className="wave-count">{w.city_ids.length} cities</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </React.Fragment>
               );
@@ -344,15 +365,24 @@ export default function App() {
         <div className="map-wrapper">
           <MapContainer center={[31.5, 34.9]} zoom={8} className="map" style={{ height: '100%', width: '100%', position: 'absolute' }}>
             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+            {/* Draw specific cities */}
             {polygons && markers.map((m, i) => {
               const poly = polygons[String(m.id)];
               if (!poly) return null;
+              
+              const isActiveInWave = activeWave && activeWave.city_ids.map(String).includes(String(m.id));
               const style = DOT_COLORS[m.kind];
+              
               return (
                 <Polygon
                   key={`poly-${m.id}-${i}`}
                   positions={poly}
-                  pathOptions={{ color: style.color, fillColor: style.fill, fillOpacity: 0.5, weight: 1.5 }}
+                  pathOptions={{ 
+                    color: style.color, 
+                    fillColor: style.fill, 
+                    fillOpacity: activeWave ? (isActiveInWave ? 0.8 : 0.1) : 0.5, 
+                    weight: isActiveInWave ? 3 : 1.5 
+                  }}
                   eventHandlers={{ click: () => goToAnalysis(m) }}
                 >
                   <Popup>
@@ -390,9 +420,10 @@ export default function App() {
                     <strong>{formatLeadTime(selectedSeq.lead_time_sec)}</strong>
                   </div>
                 )}
-                {selectedSeq.attack_times && selectedSeq.attack_times.length > 0 && (
+
+                {selectedSeq.attack_times && selectedSeq.attack_times.length === 1 && (
                   <div className="stat-row mini">
-                    <span>Waves: {selectedSeq.attack_times.length}</span>
+                    <span>Wave: {new Date(selectedSeq.attack_times[0]).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
                   </div>
                 )}
               </div>

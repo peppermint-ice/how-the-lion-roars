@@ -2,6 +2,14 @@ import React, { useState, useMemo } from 'react';
 import { MapContainer, TileLayer, Polygon, Popup } from 'react-leaflet';
 
 // ── Color helpers ─────────────────────────────────────────────────────────────
+const formatDurationStats = (sec) => {
+  if (!sec) return '0m';
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
+};
+
 // Frequency heat: green (low) → red (high)
 // Modified to use a percentile-based approach if rank-based 't' is provided.
 function heatColor(count, maxCount, tOverride) {
@@ -21,6 +29,38 @@ function effColor(rate) {
   const S = 88 - t * 10;
   const L = 40 + t * 6;
   return `hsl(${H.toFixed(0)}, ${S.toFixed(0)}%, ${L.toFixed(0)}%)`;
+}
+
+// ── Distribution / Histogram chart ───────────────────────────────────────────
+function DistributionChart({ buckets, getLabel, getColor, maxCount }) {
+  const localMax = Math.max(...buckets, 1);
+  return (
+    <div className="eff-chart">
+      {buckets.map((cnt, i) => (
+        <div key={i} className="eff-bar-row">
+          <span className="eff-label">{getLabel(i)}</span>
+          <div className="eff-track">
+            <div className="eff-fill"
+              style={{ width: `${cnt / localMax * 100}%`,
+                       background: getColor(i) }} />
+          </div>
+          <span className="eff-count">{cnt}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── View Toggle ───────────────────────────────────────────────────────────────
+function ViewToggle({ view, onChange }) {
+  return (
+    <div className="mode-toggle-btns" style={{ width: 'auto', marginLeft: 'auto' }}>
+      <button className={`mode-btn ${view === 'list' ? 'active' : ''}`}
+        onClick={() => onChange('list')}>List</button>
+      <button className={`mode-btn ${view === 'chart' ? 'active' : ''}`}
+        onClick={() => onChange('chart')}>Chart</button>
+    </div>
+  );
 }
 
 // ── Mini map ──────────────────────────────────────────────────────────────────
@@ -85,9 +125,15 @@ function RankList({ items, getValue, getLabel, maxVal }) {
 // ── Main component ────────────────────────────────────────────────────────────
 export default function StatsView({ sequences, cities, polygons }) {
   const [topFilter, setTopFilter] = useState('iran');
+  const [topView, setTopView]     = useState('list');
+  const [warnView, setWarnView]   = useState('list');
+  const [effView, setEffView]     = useState('chart');
+  const [shelterView, setShelterView] = useState('list');
+  
   const [showAllTop, setShowAllTop]   = useState(false);
   const [showAllWarn, setShowAllWarn] = useState(false);
   const [showAllEff, setShowAllEff]   = useState(false);
+  const [showAllShelter, setShowAllShelter] = useState(false);
 
   const preSeqs   = useMemo(() => sequences.filter(s => s.type === 'PREEMPTIVE_SEQUENCE'), [sequences]);
   const standSeqs = useMemo(() => sequences.filter(s => s.type === 'STANDALONE_ALARM'),    [sequences]);
@@ -95,33 +141,42 @@ export default function StatsView({ sequences, cities, polygons }) {
   // Iran real-alarm counts
   const iranMap = useMemo(() => {
     const m = {};
-    preSeqs.forEach(seq => seq.realAlarmCities.forEach(id => {
-      const sid = String(id);
-      if (!m[sid] && cities[sid]) m[sid] = { ...cities[sid], count: 0 };
-      if (m[sid]) m[sid].count++;
-    }));
+    preSeqs.forEach(seq => {
+      const cityList = seq.attacks ? seq.attacks.flatMap(a => a.city_ids) : seq.realAlarmCities;
+      cityList.forEach(id => {
+        const sid = String(id);
+        if (!m[sid] && cities[sid]) m[sid] = { ...cities[sid], count: 0 };
+        if (m[sid]) m[sid].count++;
+      });
+    });
     return m;
   }, [preSeqs, cities]);
 
   // Lebanon / standalone real-alarm counts
   const lebaMap = useMemo(() => {
     const m = {};
-    standSeqs.forEach(seq => seq.realAlarmCities.forEach(id => {
-      const sid = String(id);
-      if (!m[sid] && cities[sid]) m[sid] = { ...cities[sid], count: 0 };
-      if (m[sid]) m[sid].count++;
-    }));
+    standSeqs.forEach(seq => {
+      const cityList = seq.attacks ? seq.attacks.flatMap(a => a.city_ids) : seq.realAlarmCities;
+      cityList.forEach(id => {
+        const sid = String(id);
+        if (!m[sid] && cities[sid]) m[sid] = { ...cities[sid], count: 0 };
+        if (m[sid]) m[sid].count++;
+      });
+    });
     return m;
   }, [standSeqs, cities]);
 
   // All combined
   const allMap = useMemo(() => {
     const m = {};
-    [...preSeqs, ...standSeqs].forEach(seq => seq.realAlarmCities.forEach(id => {
-      const sid = String(id);
-      if (!m[sid] && cities[sid]) m[sid] = { ...cities[sid], count: 0 };
-      if (m[sid]) m[sid].count++;
-    }));
+    [...preSeqs, ...standSeqs].forEach(seq => {
+      const cityList = seq.attacks ? seq.attacks.flatMap(a => a.city_ids) : seq.realAlarmCities;
+      cityList.forEach(id => {
+        const sid = String(id);
+        if (!m[sid] && cities[sid]) m[sid] = { ...cities[sid], count: 0 };
+        if (m[sid]) m[sid].count++;
+      });
+    });
     return m;
   }, [preSeqs, standSeqs, cities]);
 
@@ -132,20 +187,22 @@ export default function StatsView({ sequences, cities, polygons }) {
       const hitIds = new Set(seq.realAlarmCities);
       seq.preAlarmCities.forEach(id => {
         const sid = String(id);
-        if (!m[sid] && cities[sid]) m[sid] = { ...cities[sid], warnCount: 0, hitCount: 0 };
+        if (!m[sid] && cities[sid]) m[sid] = { ...cities[sid], warnCount: 0, hitCount: 0, totalHitCount: 0 };
         if (m[sid]) {
           m[sid].warnCount++;
           if (hitIds.has(sid)) m[sid].hitCount++;
+          const waveCount = seq.attacks ? seq.attacks.filter(a => a.city_ids.map(String).includes(sid)).length : (hitIds.has(sid) ? 1 : 0);
+          m[sid].totalHitCount += waveCount;
         }
       });
     });
     return m;
   }, [preSeqs, cities]);
 
-  // Efficiency: cities with ≥1 false positive
+  // Efficiency: all cities with warnings
   const effData = useMemo(() =>
     Object.values(warningMap)
-      .filter(c => c.warnCount > c.hitCount)
+      .filter(c => c.warnCount > 0)
       .map(c => ({ ...c, rate: c.hitCount / c.warnCount }))
       .sort((a, b) => b.rate - a.rate),
     [warningMap]
@@ -178,7 +235,7 @@ export default function StatsView({ sequences, cities, polygons }) {
   }, [allMap]);
 
   const warningRanked = useMemo(() => {
-    const list = Object.values(warningMap).sort((a,b) => b.warnCount - a.warnCount);
+    const list = Object.values(warningMap).sort((a,b) => (b.warnCount - a.warnCount) || (b.totalHitCount - a.totalHitCount));
     list.forEach((c, i) => { c.percentileT = list.length > 1 ? 1 - (i / (list.length - 1)) : 1; });
     return list;
   }, [warningMap]);
@@ -187,6 +244,64 @@ export default function StatsView({ sequences, cities, polygons }) {
   const activeTopList = topFilter === 'iran' ? iranRanked : topFilter === 'lebanon' ? lebaRanked : allRanked;
   const topMax     = activeTopList.length ? activeTopList[0].count : 1;
   const warnMax    = warningRanked.length ? warningRanked[0].warnCount : 1;
+
+  // New bucket calculations for Top Attacked and Top Warned
+  const topBuckets = useMemo(() => {
+    const list = activeTopList;
+    if (!list.length) return Array(10).fill(0);
+    const maxVal = topMax;
+    const b = Array(10).fill(0);
+    list.forEach(c => {
+      const idx = Math.min(9, Math.floor(((c.count-1) / maxVal) * 10));
+      b[idx]++;
+    });
+    return b;
+  }, [activeTopList, topMax]);
+
+  const warnBuckets = useMemo(() => {
+    const list = warningRanked;
+    if (!list.length) return Array(10).fill(0);
+    const maxVal = warnMax;
+    const b = Array(10).fill(0);
+    list.forEach(c => {
+      const idx = Math.min(9, Math.floor(((c.warnCount-1) / maxVal) * 10));
+      b[idx]++;
+    });
+    return b;
+  }, [warningRanked, warnMax]);
+
+  // Total shelter time aggregation
+  const shelterMap = useMemo(() => {
+    const m = {};
+    sequences.forEach(seq => {
+      const duration = seq.duration_sec || 0;
+      if (duration <= 0) return;
+      (seq.allAffectedCities || []).forEach(id => {
+        const sid = String(id);
+        if (!m[sid] && cities[sid]) m[sid] = { ...cities[sid], totalDuration: 0 };
+        if (m[sid]) m[sid].totalDuration += duration;
+      });
+    });
+    return m;
+  }, [sequences, cities]);
+
+  const shelterRanked = useMemo(() => {
+    const list = Object.values(shelterMap).sort((a,b) => b.totalDuration - a.totalDuration);
+    list.forEach((c, i) => { c.percentileT = list.length > 1 ? 1 - (i / (list.length - 1)) : 1; });
+    return list;
+  }, [shelterMap]);
+
+  const shelterMax = shelterRanked.length ? shelterRanked[0].totalDuration : 1;
+
+  const shelterBuckets = useMemo(() => {
+    if (!shelterRanked.length) return Array(10).fill(0);
+    const b = Array(10).fill(0);
+    shelterRanked.forEach(c => {
+      const idx = Math.min(9, Math.floor(((c.totalDuration - 1) / shelterMax) * 10));
+      b[idx]++;
+    });
+    return b;
+  }, [shelterRanked, shelterMax]);
 
   return (
     <div className="stats-container">
@@ -201,19 +316,36 @@ export default function StatsView({ sequences, cities, polygons }) {
                 onClick={() => setTopFilter(k)}>{lbl}</button>
             ))}
           </div>
+          <ViewToggle view={topView} onChange={setTopView} />
         </div>
         <div className="stats-body">
           <div className={`stats-list-panel ${showAllTop ? 'expanded' : ''}`}>
-            <RankList
-              items={showAllTop ? activeTopList : activeTopList.slice(0, 20)}
-              getValue={c => c.count}
-              getLabel={c => `${c.count}×`}
-              maxVal={topMax}
-            />
-            {!showAllTop && activeTopList.length > 20 && (
-              <button className="show-more-btn" onClick={() => setShowAllTop(true)}>
-                Show all {activeTopList.length} cities
-              </button>
+            {topView === 'list' ? (
+              <>
+                <RankList
+                  items={showAllTop ? activeTopList : activeTopList.slice(0, 20)}
+                  getValue={c => c.count}
+                  getLabel={c => `${c.count}×`}
+                  maxVal={topMax}
+                />
+                {!showAllTop && activeTopList.length > 20 && (
+                  <button className="show-more-btn" onClick={() => setShowAllTop(true)}>
+                    Show all {activeTopList.length} cities
+                  </button>
+                )}
+              </>
+            ) : (
+              <DistributionChart
+                buckets={topBuckets}
+                getLabel={i => {
+                  const step = Math.ceil(topMax / 10);
+                  const start = i * step + 1;
+                  const end = Math.min((i + 1) * step, topMax);
+                  return start === end ? `${start}` : `${start}–${end}`;
+                }}
+                getColor={i => heatColor((i/9) * topMax, topMax, i/9)}
+                maxCount={Math.max(...topBuckets)}
+              />
             )}
           </div>
           <div className="stats-map-panel">
@@ -234,19 +366,36 @@ export default function StatsView({ sequences, cities, polygons }) {
         <div className="stats-section-header">
           <h2 className="stats-title">Top Early-Warned Cities</h2>
           <span className="stats-subtitle">Iran attacks only</span>
+          <ViewToggle view={warnView} onChange={setWarnView} />
         </div>
         <div className="stats-body">
           <div className={`stats-list-panel ${showAllWarn ? 'expanded' : ''}`}>
-            <RankList
-              items={showAllWarn ? warningRanked : warningRanked.slice(0, 20)}
-              getValue={c => c.warnCount}
-              getLabel={c => `${c.warnCount} warned · ${c.hitCount} hit`}
-              maxVal={warnMax}
-            />
-            {!showAllWarn && warningRanked.length > 20 && (
-              <button className="show-more-btn" onClick={() => setShowAllWarn(true)}>
-                Show all {warningRanked.length} cities
-              </button>
+            {warnView === 'list' ? (
+              <>
+                <RankList
+                  items={showAllWarn ? warningRanked : warningRanked.slice(0, 20)}
+                  getValue={c => c.warnCount}
+                  getLabel={c => `${c.warnCount} warned · ${c.hitCount} hit`}
+                  maxVal={warnMax}
+                />
+                {!showAllWarn && warningRanked.length > 20 && (
+                  <button className="show-more-btn" onClick={() => setShowAllWarn(true)}>
+                    Show all {warningRanked.length} cities
+                  </button>
+                )}
+              </>
+            ) : (
+              <DistributionChart
+                buckets={warnBuckets}
+                getLabel={i => {
+                  const step = Math.ceil(warnMax / 10);
+                  const start = i * step + 1;
+                  const end = Math.min((i + 1) * step, warnMax);
+                  return start === end ? `${start}` : `${start}–${end}`;
+                }}
+                getColor={i => heatColor((i/9) * warnMax, warnMax, i/9)}
+                maxCount={Math.max(...warnBuckets)}
+              />
             )}
           </div>
           <div className="stats-map-panel">
@@ -266,29 +415,33 @@ export default function StatsView({ sequences, cities, polygons }) {
       <div className="stats-section">
         <div className="stats-section-header">
           <h2 className="stats-title">Early Warning Efficiency</h2>
-          <span className="stats-subtitle">Cities with at least 1 false positive</span>
+          <span className="stats-subtitle">Share of early warnings that lead to alarm</span>
+          <ViewToggle view={effView} onChange={setEffView} />
         </div>
         <div className="stats-body">
-          <div className="stats-list-panel">
-            <div className="eff-chart">
-              {(showAllEff ? effBuckets : effBuckets.slice(0, 20)).map((cnt, i) => (
-                <div key={i} className="eff-bar-row">
-                  <span className="eff-label">{i * 10}–{i*10+9}%</span>
-                  <div className="eff-track">
-                    <div className="eff-fill"
-                      style={{ width: `${cnt / effBucketMax * 100}%`,
-                               background: effColor(i / 9) }} />
-                  </div>
-                  <span className="eff-count">{cnt}</span>
-                </div>
-              ))}
-            </div>
-            {/* Efficiency is a fixed bucket list of 10, so no show-all needed here normally,
-                but I'll keep the logic consistent if it was a city list.
-                Actually effData is the city list below. Wait.
-                The eff-chart is buckets (10 rows). The user mentioned "Top Cities panes".
-                Top Cities panes refer to Column 1 and 2.
-                I'll leave Column 3 as is since it's only 10 rows. */}
+          <div className={`stats-list-panel ${showAllEff ? 'expanded' : ''}`}>
+            {effView === 'chart' ? (
+              <DistributionChart
+                buckets={effBuckets}
+                getLabel={i => `${i * 10}–${i * 10 + 9}%`}
+                getColor={i => effColor(i / 9)}
+                maxCount={effBucketMax}
+              />
+            ) : (
+              <>
+                <RankList
+                  items={showAllEff ? effData : effData.slice(0, 20)}
+                  getValue={c => c.rate * 100}
+                  getLabel={c => `${Math.round(c.rate * 100)}%`}
+                  maxVal={100}
+                />
+                {!showAllEff && effData.length > 20 && (
+                  <button className="show-more-btn" onClick={() => setShowAllEff(true)}>
+                    Show all {effData.length} cities
+                  </button>
+                )}
+              </>
+            )}
           </div>
           <div className="stats-map-panel">
             <StatsMap
@@ -296,6 +449,54 @@ export default function StatsView({ sequences, cities, polygons }) {
               keyProp="eff"
               getColor={c => effColor(c.rate)}
               getLabel={c => `${Math.round(c.rate * 100)}% efficiency (${c.hitCount}/${c.warnCount})`}
+              polygons={polygons}
+            />
+          </div>
+        </div>
+      </div>
+      
+      {/* ── Column 4: Time Spent in Shelter ───────────────────────────── */}
+      <div className="stats-section">
+        <div className="stats-section-header">
+          <h2 className="stats-title">Time Spent in Shelter</h2>
+          <span className="stats-subtitle">Cumulative across all sessions</span>
+          <ViewToggle view={shelterView} onChange={setShelterView} />
+        </div>
+        <div className="stats-body">
+          <div className={`stats-list-panel ${showAllShelter ? 'expanded' : ''}`}>
+            {shelterView === 'list' ? (
+              <>
+                <RankList
+                  items={showAllShelter ? shelterRanked : shelterRanked.slice(0, 20)}
+                  getValue={c => c.totalDuration}
+                  getLabel={c => formatDurationStats(c.totalDuration)}
+                  maxVal={shelterMax}
+                />
+                {!showAllShelter && shelterRanked.length > 20 && (
+                  <button className="show-more-btn" onClick={() => setShowAllShelter(true)}>
+                    Show all {shelterRanked.length} cities
+                  </button>
+                )}
+              </>
+            ) : (
+              <DistributionChart
+                buckets={shelterBuckets}
+                getLabel={i => {
+                  const step = shelterMax / 10;
+                  return `${formatDurationStats(i * step + 1)}–${formatDurationStats((i + 1) * step)}`;
+                }}
+                getColor={i => heatColor((i/9) * shelterMax, shelterMax, i/9)}
+                maxCount={Math.max(...shelterBuckets)}
+              />
+            )}
+          </div>
+          <div className="stats-map-panel">
+            <StatsMap
+              items={shelterRanked}
+              keyProp="shelter"
+              listReference={shelterRanked}
+              getColor={c => heatColor(c.totalDuration, shelterMax, c.percentileT)}
+              getLabel={c => `Total time in shelter: ${formatDurationStats(c.totalDuration)}`}
               polygons={polygons}
             />
           </div>

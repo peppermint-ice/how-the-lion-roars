@@ -84,23 +84,27 @@ def reconstruct_sessions():
         t_end = found_end['end_time']
         
         # Absorption: Find all Alerts (1/2) that started during this warning session
-        attack_times = []
+        attacks = []
         alerted_c_set = set()
         
         mask = (alerts_agg['start_time'] >= t_start) & (alerts_agg['start_time'] <= t_end)
-        candidate_alerts = alerts_agg[mask]
+        candidate_alerts = alerts_agg[mask].sort_values('start_time')
         
         for aid, arow in candidate_alerts.iterrows():
             if warned_c_set & arow['affected_city_ids']:
-                attack_times.append(arow['start_time'])
+                attacks.append({
+                    "time": arow['start_time'].strftime('%Y-%m-%d %H:%M:%S'),
+                    "city_ids": list(arow['affected_city_ids'])
+                })
                 alerted_c_set |= arow['affected_city_ids']
                 absorbed_alert_ids.add(str(aid))
                 
-        attack_times = sorted(list(set(attack_times)))
+        attack_times = sorted(list(set([a['time'] for a in attacks])))
         
         lead_time_sec = 0
-        if attack_times:
-            lead_time_sec = int((attack_times[0] - t_start).total_seconds())
+        if attacks:
+            t_first_attack = pd.to_datetime(attacks[0]['time'])
+            lead_time_sec = int((t_first_attack - t_start).total_seconds())
 
         sessions.append({
             "session_id": str(sid),
@@ -110,7 +114,8 @@ def reconstruct_sessions():
             "alerted_city_ids": list(alerted_c_set),
             "affected_city_ids": list(warned_c_set | alerted_c_set),
             "start_time": t_start.strftime('%Y-%m-%d %H:%M:%S'),
-            "attack_times": [t.strftime('%Y-%m-%d %H:%M:%S') for t in attack_times],
+            "attack_times": attack_times,
+            "attacks": attacks,
             "end_time": t_end.strftime('%Y-%m-%d %H:%M:%S'),
             "duration_sec": int((t_end - t_start).total_seconds()),
             "lead_time_sec": lead_time_sec
@@ -145,6 +150,10 @@ def reconstruct_sessions():
             "affected_city_ids": list(alerted_c_set),
             "start_time": t_start.strftime('%Y-%m-%d %H:%M:%S'),
             "attack_times": [t_start.strftime('%Y-%m-%d %H:%M:%S')],
+            "attacks": [{
+                "time": t_start.strftime('%Y-%m-%d %H:%M:%S'),
+                "city_ids": list(alerted_c_set)
+            }],
             "end_time": t_end.strftime('%Y-%m-%d %H:%M:%S'),
             "duration_sec": int((t_end - t_start).total_seconds()),
             "lead_time_sec": 0
