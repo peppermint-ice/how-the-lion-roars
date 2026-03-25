@@ -84,6 +84,11 @@ export default function App() {
   const [visibleCount, setVisibleCount] = useState(10);
   const [activeWave, setActiveWave]       = useState(null);
   const [isMenuOpen, setIsMenuOpen]       = useState(false);
+  const [hasAgreed, setHasAgreed]         = useState(false);
+
+  const handleAgree = () => {
+    setHasAgreed(true);
+  };
 
   // --- Filters ---
   const [cityFilter, setCityFilter]     = useState(null);
@@ -446,6 +451,17 @@ export default function App() {
           )}
         </div>
       </main>
+      )}
+      {!hasAgreed && (
+        <div className="disclaimer-overlay">
+          <div className="disclaimer-card">
+            <h2>Disclaimer</h2>
+            <p>
+              I understand that this website is purely informational, unofficial, and can't be used as a reason to decide whether or not to go to the shelter. I understand that following the Home Front Command guidelines is essential.
+            </p>
+            <button className="disclaimer-btn" onClick={handleAgree}>I Understand & Agree</button>
+          </div>
+        </div>
       )}
     </div>
   );

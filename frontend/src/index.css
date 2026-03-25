@@ -913,7 +913,76 @@ main { flex: 1; display: flex; overflow: hidden; }
   }
 }
 
-/* --- About View --- */
+/* ── Disclaimer Overlay ────────────────────────────────── */
+.disclaimer-overlay {
+  position: fixed; inset: 0;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(12px);
+  z-index: 99999;
+  display: flex; align-items: center; justify-content: center;
+  padding: 1.5rem;
+}
+
+.disclaimer-card {
+  background: rgba(30, 41, 59, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1.25rem;
+  padding: 2.5rem;
+  max-width: 500px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.disclaimer-card h2 {
+  margin: 0 0 1.5rem;
+  font-size: 1.75rem;
+  background: linear-gradient(135deg, #fff 0%, #94a3b8 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.disclaimer-card p {
+  line-height: 1.7;
+  color: #cbd5e1;
+  margin-bottom: 2.5rem;
+  font-size: 1.05rem;
+}
+
+.disclaimer-btn {
+  width: 100%;
+  padding: 1rem;
+  border-radius: 0.75rem;
+  border: none;
+  background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+  color: white;
+  font-weight: 600;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3);
+}
+
+.disclaimer-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 20px 25px -5px rgba(59, 130, 246, 0.4);
+  filter: brightness(1.1);
+}
+
+.disclaimer-btn:active {
+  transform: translateY(0);
+}
+
+@media (max-width: 640px) {
+  .disclaimer-card {
+    padding: 2rem 1.5rem;
+  }
+  .disclaimer-card h2 { font-size: 1.5rem; }
+  .disclaimer-card p { font-size: 0.95rem; }
+}
+
+/* ── About View ── */
 .about-container {
   flex: 1;
   padding: 40px 20px;
