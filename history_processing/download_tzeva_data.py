@@ -93,7 +93,7 @@ def download_tzeva_data(start_id, end_id, append=False):
                         alert_count += 1
                 
                 success_count += 1
-                time.sleep(0.5)
+                time.sleep(1.0)
                 
             except Exception as e:
                 print(f"Error fetching ID {cid}: {e}")

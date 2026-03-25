@@ -109,7 +109,7 @@ def download_instructions(start_id, end_id, append=False, max_time=None):
                 for city in target_cities:
                     writer.writerow([time_str, city, cid, category, ""])
                 
-                time.sleep(0.5)
+                time.sleep(1.0)
                 
             except Exception as e:
                 print(f"Error for ID {cid}: {e}")
