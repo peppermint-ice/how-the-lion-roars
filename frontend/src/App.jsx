@@ -86,8 +86,8 @@ export default function App() {
 
   useEffect(() => {
     Promise.all([
-      fetch('/shelter_sessions.json').then(r => r.json()),
-      fetch('/cities.json').then(r => r.json())
+      fetch('/shelter_sessions.json').then(r => { if (!r.ok) throw new Error(`Sessions: ${r.status}`); return r.json(); }),
+      fetch('/cities.json').then(r => { if (!r.ok) throw new Error(`Cities: ${r.status}`); return r.json(); })
     ]).then(([sessions, citiesData]) => {
       // Map cities.json structure to flattened dict
       const citiesMap = {};

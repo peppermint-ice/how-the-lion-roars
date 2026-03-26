@@ -61,7 +61,7 @@ function StatsMap({ items, keyProp, getColor, getLabel, listReference, polygons 
           >
             <Popup>
               <strong>{c.en || c.ru || c.he}</strong>
-              {c.he && <><br /><span style={{ color: '#888' }}>{c.he}</span></>}
+              {c.he && <><br /><span style={{ color: '#94a3b8' }}>{c.he}</span></>}
               <br />{getLabel(c)}
             </Popup>
           </Polygon>
@@ -162,7 +162,7 @@ export default function StatsView({ sequences, cities, polygons }) {
         if (m[sid]) {
           m[sid].warnCount++;
           if (hitIds.has(sid)) m[sid].hitCount++;
-          const waveCount = seq.attacks ? seq.attacks.filter(a => a.city_ids.map(String).includes(sid)).length : (hitIds.has(sid) ? 1 : 0);
+          const waveCount = seq.attacks ? seq.attacks.filter(a => new Set(a.city_ids.map(String)).has(sid)).length : (hitIds.has(sid) ? 1 : 0);
           m[sid].totalHitCount += waveCount;
         }
       });

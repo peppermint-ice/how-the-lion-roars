@@ -16,7 +16,7 @@ def load_csv_url():
 def download_tzeva_data(start_id, end_id, append=False):
     csv_url = load_csv_url()
     print(f"Fetching alarms.csv to map origins...")
-    response = requests.get(csv_url)
+    response = requests.get(csv_url, timeout=60)
     response.raise_for_status()
     f = io.StringIO(response.content.decode('utf-8-sig'))
     reader = csv.reader(f)

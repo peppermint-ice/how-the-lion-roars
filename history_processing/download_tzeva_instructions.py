@@ -119,6 +119,3 @@ def download_instructions(start_id, end_id, append=False, max_time=None):
 
 if __name__ == "__main__":
     download_instructions(194, 1122)
-
-if __name__ == "__main__":
-    download_instructions(194, 1122)

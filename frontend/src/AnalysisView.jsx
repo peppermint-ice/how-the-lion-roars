@@ -60,7 +60,7 @@ export default function AnalysisView({ sequences, cities, initialCity, onBack,
     const sid = String(targetCity.id);
     return sequences.reduce((acc, s) => {
       if (s.attacks) {
-        return acc + s.attacks.filter(a => a.city_ids.map(String).includes(sid)).length;
+        return acc + s.attacks.filter(a => new Set(a.city_ids.map(String)).has(sid)).length;
       }
       return acc + (s.realAlarmCities.includes(sid) ? 1 : 0);
     }, 0);
@@ -270,7 +270,7 @@ export default function AnalysisView({ sequences, cities, initialCity, onBack,
                 {city && score !== undefined && (
                   <Popup>
                     <strong>{city.en || city.ru || city.he}</strong><br />
-                    <span style={{ color: '#888' }}>{city.he}</span><br />
+                    <span style={{ color: '#94a3b8' }}>{city.he}</span><br />
                     <em>
                       Of {correlations[id].denominator} shared early warnings, {correlations[id].denominator - correlations[id].numerator} ({Math.round(score * 100)}%) did NOT lead to an alert in {targetCity.en || targetCity.ru || targetCity.he}
                     </em>

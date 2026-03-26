@@ -775,7 +775,10 @@ main { flex: 1; display: flex; overflow: hidden; }
 
   /* History Sidebar */
   .legend {
-    display: none;
+    display: flex;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.7rem;
+    gap: 0.3rem;
   }
 
   .sidebar {

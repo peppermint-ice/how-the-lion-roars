@@ -99,6 +99,53 @@ describe('computeCorrelations', () => {
   });
 });
 
+// --- Set.has() vs .includes() equivalence (validates fixes #4 and #5) ---
+
+describe('Set.has() lookup equivalence', () => {
+  // These tests validate that the Set.has() optimization in AnalysisView hitCount
+  // and StatsView warningMap produces identical results to the original .includes()
+
+  const attacks = [
+    { city_ids: ['510', '1232', '813'] },
+    { city_ids: ['510', '1470'] },
+    { city_ids: [] },
+  ];
+
+  it('finds city present in attack wave', () => {
+    const sid = '510';
+    const includesResult = attacks.filter(a => a.city_ids.map(String).includes(sid)).length;
+    const setResult = attacks.filter(a => new Set(a.city_ids.map(String)).has(sid)).length;
+    expect(setResult).toBe(includesResult);
+    expect(setResult).toBe(2);
+  });
+
+  it('does not find city absent from all waves', () => {
+    const sid = '9999';
+    const includesResult = attacks.filter(a => a.city_ids.map(String).includes(sid)).length;
+    const setResult = attacks.filter(a => new Set(a.city_ids.map(String)).has(sid)).length;
+    expect(setResult).toBe(includesResult);
+    expect(setResult).toBe(0);
+  });
+
+  it('handles empty city_ids array', () => {
+    const emptyAttacks = [{ city_ids: [] }];
+    const sid = '510';
+    const includesResult = emptyAttacks.filter(a => a.city_ids.map(String).includes(sid)).length;
+    const setResult = emptyAttacks.filter(a => new Set(a.city_ids.map(String)).has(sid)).length;
+    expect(setResult).toBe(includesResult);
+    expect(setResult).toBe(0);
+  });
+
+  it('handles numeric city_ids converted to strings', () => {
+    const numericAttacks = [{ city_ids: [510, 1232] }];
+    const sid = '510';
+    const includesResult = numericAttacks.filter(a => a.city_ids.map(String).includes(sid)).length;
+    const setResult = numericAttacks.filter(a => new Set(a.city_ids.map(String)).has(sid)).length;
+    expect(setResult).toBe(includesResult);
+    expect(setResult).toBe(1);
+  });
+});
+
 // --- buildCityIndex ---
 
 describe('buildCityIndex', () => {
