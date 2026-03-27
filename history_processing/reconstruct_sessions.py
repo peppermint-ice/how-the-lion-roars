@@ -15,9 +15,9 @@ def reconstruct_sessions():
     
     # 1. Load Data
     print("Loading CSVs...")
-    alerts = pd.read_csv('history_processing/tzevaadom_alerts.csv', encoding='utf-8-sig', on_bad_lines='skip')
-    warnings = pd.read_csv('history_processing/tzevaadom_early_warnings.csv', encoding='utf-8-sig', on_bad_lines='skip')
-    ends = pd.read_csv('history_processing/tzevaadom_event_ended.csv', encoding='utf-8-sig', on_bad_lines='skip')
+    alerts = pd.read_csv(os.path.join('history_processing', 'tzevaadom_alerts.csv'), encoding='utf-8-sig', on_bad_lines='skip')
+    warnings = pd.read_csv(os.path.join('history_processing', 'tzevaadom_early_warnings.csv'), encoding='utf-8-sig', on_bad_lines='skip')
+    ends = pd.read_csv(os.path.join('history_processing', 'tzevaadom_event_ended.csv'), encoding='utf-8-sig', on_bad_lines='skip')
     
     # Pre-filter for valid timestamps
     for df in [alerts, warnings, ends]:
@@ -163,7 +163,7 @@ def reconstruct_sessions():
     sessions.sort(key=lambda x: x['start_time'])
 
     # 4. Save Output
-    output_path = 'history_processing/shelter_sessions.json'
+    output_path = os.path.join('history_processing', 'shelter_sessions.json')
     print(f"Saving {len(sessions)} sessions to {output_path}...")
     with open(output_path, 'w', encoding='utf-8') as f:
         json.dump(sessions, f, indent=2, ensure_ascii=False)

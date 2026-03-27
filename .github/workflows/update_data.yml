@@ -11,6 +11,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.AUTO_UPDATE_TOKEN }}
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -32,5 +34,3 @@ jobs:
           git add history_processing/*.csv history_processing/*.json frontend/public/shelter_sessions.json
           git commit -m "Automated database update [skip ci]" || echo "No changes to commit"
           git push
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
