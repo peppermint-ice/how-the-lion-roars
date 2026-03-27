@@ -270,7 +270,7 @@ export default function AnalysisView({ sequences, cities, initialCity, onBack,
                 {city && score !== undefined && (
                   <Popup>
                     <strong>{city.en || city.ru || city.he}</strong><br />
-                    <span style={{ color: '#94a3b8' }}>{city.he}</span><br />
+                    <span style={{ color: '#888' }}>{city.he}</span><br />
                     <em>
                       Of {correlations[id].denominator} shared early warnings, {correlations[id].denominator - correlations[id].numerator} ({Math.round(score * 100)}%) did NOT lead to an alert in {targetCity.en || targetCity.ru || targetCity.he}
                     </em>

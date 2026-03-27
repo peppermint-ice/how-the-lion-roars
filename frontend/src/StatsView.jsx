@@ -61,7 +61,7 @@ function StatsMap({ items, keyProp, getColor, getLabel, listReference, polygons 
           >
             <Popup>
               <strong>{c.en || c.ru || c.he}</strong>
-              {c.he && <><br /><span style={{ color: '#94a3b8' }}>{c.he}</span></>}
+              {c.he && <><br /><span style={{ color: '#888' }}>{c.he}</span></>}
               <br />{getLabel(c)}
             </Popup>
           </Polygon>
