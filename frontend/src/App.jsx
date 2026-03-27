@@ -344,32 +344,49 @@ export default function App() {
         <div className="map-wrapper">
           <MapContainer center={[31.5, 34.9]} zoom={8} className="map" style={{ height: '100%', width: '100%', position: 'absolute' }}>
             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-            {/* Draw specific cities */}
-            {polygons && markers.map((m, i) => {
-              const poly = polygons[String(m.id)];
-              if (!poly) return null;
+            {/* Draw all city polygons */}
+            {polygons && Object.keys(polygons).map(cid => {
+              const poly = polygons[cid];
+              const city = cities[cid];
+              if (!city) return null;
+
+              const marker = markers.find(m => String(m.id) === cid);
               
-              const isActiveInWave = activeWaveSet && activeWaveSet.has(String(m.id));
-              const style = DOT_COLORS[m.kind];
-              
-              return (
-                <Polygon
-                  key={`poly-${m.id}-${i}`}
-                  positions={poly}
-                  pathOptions={{ 
-                    color: style.color, 
-                    fillColor: style.fill, 
-                    fillOpacity: activeWave ? (isActiveInWave ? 0.8 : 0.1) : 0.5, 
-                    weight: isActiveInWave ? 3 : 1.5 
-                  }}
-                  eventHandlers={{ click: () => goToAnalysis(m) }}
-                >
-                  <Popup>
-                    <strong>{m.en || m.ru || m.he}</strong><br />
-                    <em>{style.label}</em>
-                  </Popup>
-                </Polygon>
-              );
+              if (marker) {
+                const isActiveInWave = activeWaveSet && activeWaveSet.has(String(cid));
+                const style = DOT_COLORS[marker.kind];
+                return (
+                  <Polygon
+                    key={`poly-${cid}`}
+                    positions={poly}
+                    pathOptions={{ 
+                      color: style.color, 
+                      fillColor: style.fill, 
+                      fillOpacity: activeWave ? (isActiveInWave ? 0.8 : 0.1) : 0.5, 
+                      weight: isActiveInWave ? 3 : 1.5 
+                    }}
+                    eventHandlers={{ click: () => goToAnalysis(marker) }}
+                  >
+                    <Popup>
+                      <strong>{marker.en || marker.ru || marker.he}</strong><br />
+                      <em>{style.label}</em>
+                    </Popup>
+                  </Polygon>
+                );
+              } else {
+                // Transparent interactive polygon for other cities
+                return (
+                  <Polygon
+                    key={`poly-bg-${cid}`}
+                    positions={poly}
+                    pathOptions={{ 
+                      stroke: false,
+                      fillOpacity: 0
+                    }}
+                    eventHandlers={{ click: () => goToAnalysis(city) }}
+                  />
+                );
+              }
             })}
             <MapController markers={markers} />
           </MapContainer>
