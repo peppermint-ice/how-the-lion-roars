@@ -1,8 +1,6 @@
 {
   "name": "how-the-lion-roars",
-  "dependencies": {
-    "leaflet": "^1.9.4",
-    "lucide-react": "^0.577.0",
-    "react-leaflet": "^5.0.0"
+  "scripts": {
+    "test": "cd frontend && npx vitest run; cd .. && python3 -m pytest -v --tb=short"
   }
 }

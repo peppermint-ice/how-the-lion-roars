@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, Polygon, Popup, useMap } from 'react-leaflet';
 import { AlertCircle, BarChart2, LayoutDashboard, Info, Menu, X } from 'lucide-react';
 import AnalysisView from './AnalysisView.jsx';
 import StatsView from './StatsView.jsx';
+import { formatDuration, formatLeadTime, computeMarkers, mapSession } from './utils.js';
 
 // --- Map controller: re-fit bounds when selection changes ---
 const MapController = ({ markers }) => {
@@ -24,54 +25,12 @@ const MapController = ({ markers }) => {
   return null;
 };
 
-// --- Formatting helpers ---
-const formatDuration = (sec) => {
-  if (!sec && sec !== 0) return '0:00';
-  const h = Math.floor(sec / 3600);
-  const m = Math.floor((sec % 3600) / 60);
-  const s = sec % 60;
-  if (h > 0) {
-    return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-  }
-  return `${m}:${String(s).padStart(2, '0')}`;
-};
-
-const formatLeadTime = (sec) => {
-  if (!sec && sec !== 0) return '0s';
-  if (sec < 60) return `${sec}s`;
-  const m = Math.floor(sec / 60);
-  const s = sec % 60;
-  return `${m}:${String(s).padStart(2, '0')}`;
-};
-
 // --- Dot / polygon color logic ---
 const DOT_COLORS = {
   warned_hit:  { color: '#ff2222', fill: '#ff2222', label: 'Early warning + alert' },
   warned_only: { color: '#f59e0b', fill: '#fbbf24', label: 'Early warning only'    },
   surprise:    { color: '#7f1d1d', fill: '#991b1b', label: 'Alert without warning'  },
 };
-
-function computeMarkers(seq, cities) {
-  if (!seq || !cities) return [];
-  const preIds  = new Set(seq.preAlarmCities);
-  const realIds = new Set(seq.realAlarmCities);
-  const markers = [];
-  
-  const allIds = new Set([...seq.preAlarmCities, ...seq.realAlarmCities]);
-  
-  for (const id of allIds) {
-    const c = cities[id];
-    if (!c || !c.lat || !c.lng) continue;
-    
-    let kind = 'surprise';
-    if (preIds.has(id)) {
-      kind = realIds.has(id) ? 'warned_hit' : 'warned_only';
-    }
-    
-    markers.push({ ...c, kind });
-  }
-  return markers;
-}
 
 // --- App ---
 export default function App() {
@@ -127,8 +86,8 @@ export default function App() {
 
   useEffect(() => {
     Promise.all([
-      fetch('/shelter_sessions.json').then(r => r.json()),
-      fetch('/cities.json').then(r => r.json())
+      fetch('/shelter_sessions.json').then(r => { if (!r.ok) throw new Error(`Sessions: ${r.status}`); return r.json(); }),
+      fetch('/cities.json').then(r => { if (!r.ok) throw new Error(`Cities: ${r.status}`); return r.json(); })
     ]).then(([sessions, citiesData]) => {
       // Map cities.json structure to flattened dict
       const citiesMap = {};
@@ -138,17 +97,7 @@ export default function App() {
         });
       }
 
-      // Map sessions to old structure for compatibility or update logic
-      const mapped = sessions.map(s => ({
-        ...s,
-        id: s.session_id,
-        startTime: s.start_time,
-        // For compatibility with legacy filters/logic:
-        type: s.start_type === 14 ? 'PREEMPTIVE_SEQUENCE' : 'STANDALONE_ALARM',
-        preAlarmCities: (s.warned_city_ids || []).map(String),
-        realAlarmCities: (s.alerted_city_ids || []).map(String),
-        allAffectedCities: (s.affected_city_ids || []).map(String)
-      }));
+      const mapped = sessions.map(mapSession);
 
       const sorted = [...mapped].sort((a, b) => new Date(b.startTime) - new Date(a.startTime));
       setCities(citiesMap);

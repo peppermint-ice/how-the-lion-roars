@@ -1,35 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { MapContainer, TileLayer, Polygon, Popup } from 'react-leaflet';
-
-// ── Color helpers ─────────────────────────────────────────────────────────────
-const formatDurationStats = (sec) => {
-  if (!sec) return '0m';
-  const h = Math.floor(sec / 3600);
-  const m = Math.floor((sec % 3600) / 60);
-  if (h > 0) return `${h}h ${m}m`;
-  return `${m}m`;
-};
-
-// Frequency heat: green (low) → red (high)
-// Modified to use a percentile-based approach if rank-based 't' is provided.
-function heatColor(count, maxCount, tOverride) {
-  const t = (tOverride !== undefined) ? tOverride : (maxCount > 0 ? Math.min(1, count / maxCount) : 0);
-  // Quadratic curve (t*t) makes it stay green longer for linear counts,
-  // but for percentiles we want it more balanced.
-  // Actually, we'll keep the tt logic but the input 't' will be percentile-based.
-  const tt = t; // Use linear for percentile to satisfy "median = yellow" (t=0.5)
-  return `hsl(${(120 * (1 - tt)).toFixed(0)}, ${(80 + tt * 15).toFixed(0)}%, ${(44 - tt * 8).toFixed(0)}%)`;
-}
-
-// Efficiency: rate=0 (all false positives) → red, rate=1 (perfect) → green
-// sqrt curve makes it turn green only at HIGH efficiency (red earlier)
-function effColor(rate) {
-  const t = Math.sqrt(Math.max(0, Math.min(1, rate)));   // sqrt: 0.25→0.5, 0.5→0.71
-  const H = 120 * t;                                       // 0=red, 120=green
-  const S = 88 - t * 10;
-  const L = 40 + t * 6;
-  return `hsl(${H.toFixed(0)}, ${S.toFixed(0)}%, ${L.toFixed(0)}%)`;
-}
+import { formatDurationStats, heatColor, effColor } from './utils.js';
 
 // ── Distribution / Histogram chart ───────────────────────────────────────────
 function DistributionChart({ buckets, getLabel, getColor, maxCount }) {
@@ -191,7 +162,7 @@ export default function StatsView({ sequences, cities, polygons }) {
         if (m[sid]) {
           m[sid].warnCount++;
           if (hitIds.has(sid)) m[sid].hitCount++;
-          const waveCount = seq.attacks ? seq.attacks.filter(a => a.city_ids.map(String).includes(sid)).length : (hitIds.has(sid) ? 1 : 0);
+          const waveCount = seq.attacks ? seq.attacks.filter(a => new Set(a.city_ids.map(String)).has(sid)).length : (hitIds.has(sid) ? 1 : 0);
           m[sid].totalHitCount += waveCount;
         }
       });

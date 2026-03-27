@@ -42,7 +42,7 @@ def get_latest_local_alert_id():
 def get_latest_alarms_id(alarms_url):
     """Downloads alarms.csv and finds the latest ID with all fields filled (including origin) in 2026+."""
     print(f"Downloading {alarms_url}...")
-    r = requests.get(alarms_url)
+    r = requests.get(alarms_url, timeout=60)
     r.raise_for_status()
     f = io.StringIO(r.content.decode('utf-8-sig'))
     reader = csv.DictReader(f)
@@ -133,7 +133,7 @@ def verify_ids_with_alarms(alarms_url):
                     local_ids.add(str(row['id']))
 
         # Load remote IDs (2026+)
-        r = requests.get(alarms_url)
+        r = requests.get(alarms_url, timeout=60)
         r.raise_for_status()
         f = io.StringIO(r.content.decode('utf-8-sig'))
         reader = csv.DictReader(f)

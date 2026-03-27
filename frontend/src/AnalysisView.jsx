@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { MapContainer, TileLayer, CircleMarker, Popup, Polygon, useMap } from 'react-leaflet';
+import { scoreColor, buildCityIndex, computeCorrelations } from './utils.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const DEFAULT_CUTOFF = 0.10;  // 10% default threshold
@@ -21,59 +22,6 @@ function MapFitter({ markers }) {
     }
   }, [markers, map]);
   return null;
-}
-
-// scoreColor: normalises score to [minVal, maxVal] → red→orange→yellow→green
-function scoreColor(score, minVal = 0, maxVal = 1.0) {
-  const lo = minVal;
-  const hi = Math.max(lo + 0.01, maxVal); // Ensure hi > lo
-  const n = Math.max(0, Math.min(1, (score - lo) / (hi - lo)));
-  // Use a linear or slightly curved transition. 
-  // Let t=0 (min safety) be Red (H=0), t=1 (max safety) be Green (H=120)
-  const t = n; 
-  const H = 120 * t;
-  const S = 80 + (1 - t) * 15;
-  const L = 44 - (1 - t) * 8;
-  return `hsl(${H.toFixed(1)}, ${S.toFixed(0)}%, ${L.toFixed(0)}%)`;
-}
-
-// ── City index ────────────────────────────────────────────────────────────────
-function buildCityIndex(sequences, cities) {
-  if (!cities) return [];
-  const s = new Set();
-  sequences.filter(seq => seq.type === 'PREEMPTIVE_SEQUENCE')
-           .forEach(seq => seq.realAlarmCities.forEach(id => s.add(String(id))));
-  return Object.values(cities).filter(c => s.has(String(c.id)) && c.lat && c.lng);
-}
-
-// ── Correlation computation ───────────────────────────────────────────────────
-function computeCorrelations(targetId, sequences) {
-  const strId = String(targetId);
-  const pre = sequences.filter(s => s.type === 'PREEMPTIVE_SEQUENCE');
-  const targetWarnedSeqs = pre.filter(s => s.preAlarmCities.includes(strId));
-  if (!targetWarnedSeqs.length) return {};
-
-  const bothWarnedCounts = {};       // Denominator
-  const bothWarnedAndHitCounts = {};  // Numerator
-  
-  targetWarnedSeqs.forEach(seq => {
-    const isTargetHit = seq.realAlarmCities.includes(strId);
-    seq.preAlarmCities.forEach(otherId => {
-      if (otherId === strId) return;
-      bothWarnedCounts[otherId] = (bothWarnedCounts[otherId] || 0) + 1;
-      if (isTargetHit) {
-        bothWarnedAndHitCounts[otherId] = (bothWarnedAndHitCounts[otherId] || 0) + 1;
-      }
-    });
-  });
-  
-  const result = {};
-  Object.keys(bothWarnedCounts).forEach(id => {
-    const num = bothWarnedAndHitCounts[id] || 0;
-    const den = bothWarnedCounts[id];
-    result[id] = { score: num / den, numerator: num, denominator: den };
-  });
-  return result;
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -112,7 +60,7 @@ export default function AnalysisView({ sequences, cities, initialCity, onBack,
     const sid = String(targetCity.id);
     return sequences.reduce((acc, s) => {
       if (s.attacks) {
-        return acc + s.attacks.filter(a => a.city_ids.map(String).includes(sid)).length;
+        return acc + s.attacks.filter(a => new Set(a.city_ids.map(String)).has(sid)).length;
       }
       return acc + (s.realAlarmCities.includes(sid) ? 1 : 0);
     }, 0);
