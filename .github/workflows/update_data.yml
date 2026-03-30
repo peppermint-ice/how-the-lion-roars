@@ -8,6 +8,8 @@ on:
 jobs:
   update:
     runs-on: ubuntu-latest
+    env:
+      TZ: "Asia/Jerusalem"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
