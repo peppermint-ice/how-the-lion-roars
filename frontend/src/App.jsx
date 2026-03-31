@@ -57,7 +57,6 @@ export default function App() {
   const [showCityDropdown, setShowCityDropdown] = useState(false);
   const [dateFrom, setDateFrom]         = useState('');
   const [dateTo, setDateTo]             = useState('');
-  const [filterMissiles, setFilterMissiles] = useState(true);
   const [filterDrones, setFilterDrones]     = useState(true);
 
   // --- Shared polygon state ---
@@ -125,7 +124,8 @@ export default function App() {
       
       const cats = s.categories || [];
       if (cats.length > 0) {
-        const canShowMissile = filterMissiles && cats.includes(1);
+        // Missiles (cat 1) are always shown; drones (cat 2) follow the filter toggle.
+        const canShowMissile = cats.includes(1);
         const canShowDrone = filterDrones && cats.includes(2);
         if (!canShowMissile && !canShowDrone) return false;
       }
@@ -141,7 +141,7 @@ export default function App() {
       if (dateTo && sDate > dateTo) return false;
       return true;
     });
-  }, [sequences, iranOnly, cityFilter, dateFrom, dateTo, filterMissiles, filterDrones]);
+  }, [sequences, iranOnly, cityFilter, dateFrom, dateTo, filterDrones]);
 
   const pagedSequences = filteredSequences.slice(0, visibleCount);
 
@@ -250,14 +250,12 @@ export default function App() {
                 >
                   {iranOnly ? 'Iran only' : 'Hide Hezbollah'}
                 </button>
-                <div className="category-filters-mini">
-                  <button className={`cat-filter-btn ${filterMissiles ? 'active' : ''}`} onClick={() => setFilterMissiles(!filterMissiles)}>
-                    <Rocket size={14} />
-                  </button>
-                  <button className={`cat-filter-btn ${filterDrones ? 'active' : ''}`} onClick={() => setFilterDrones(!filterDrones)}>
-                    <Plane size={14} />
-                  </button>
-                </div>
+                <button
+                  className={`filter-btn ${!filterDrones ? 'active' : ''}`}
+                  onClick={() => setFilterDrones(v => !v)}
+                >
+                  {!filterDrones ? 'Missiles only' : 'Hide Drones'}
+                </button>
               </div>
             </div>
 
