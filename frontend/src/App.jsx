@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, Polygon, Popup, useMap } from 'react-leaflet';
 import { AlertCircle, BarChart2, LayoutDashboard, Info, Menu, X } from 'lucide-react';
 import AnalysisView from './AnalysisView.jsx';
 import StatsView from './StatsView.jsx';
-import { formatDuration, formatLeadTime, computeMarkers, mapSession } from './utils.js';
+import { formatDuration, formatLeadTime, computeMarkers, mapSession, normalizeSearchString } from './utils.js';
 
 // --- Map controller: re-fit bounds when selection changes ---
 const MapController = ({ markers }) => {
@@ -141,12 +141,12 @@ export default function App() {
 
   const searchResults = useMemo(() => {
     if (!cityQuery.trim()) return allCitiesList.slice(0, 50);
-    const q = cityQuery.toLowerCase().trim();
+    const q = normalizeSearchString(cityQuery);
     return allCitiesList.filter(c =>
-      (c.en && c.en.toLowerCase().includes(q)) ||
-      (c.ru && c.ru.toLowerCase().includes(q)) ||
-      (c.he && c.he.includes(q)) ||
-      (c.ar && c.ar.includes(q))
+      normalizeSearchString(c.en).includes(q) ||
+      normalizeSearchString(c.ru).includes(q) ||
+      normalizeSearchString(c.he).includes(q) ||
+      normalizeSearchString(c.ar).includes(q)
     ).slice(0, 50);
   }, [cityQuery, allCitiesList]);
 

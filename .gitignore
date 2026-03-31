@@ -6,6 +6,8 @@ venv/
 .venv/
 env/
 .env
+ml/
+recovery/
 
 # Front-end
 node_modules/

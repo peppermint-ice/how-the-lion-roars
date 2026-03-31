@@ -19,6 +19,16 @@ export const formatLeadTime = (sec) => {
   return `${m}:${String(s).padStart(2, '0')}`;
 };
 
+export const normalizeSearchString = (str) => {
+  if (!str) return '';
+  return str
+    .toLowerCase()
+    .trim()
+    .replace(/''/g, "'")
+    .replace(/[’‘׳\u05F3”“״\u05F4"]/g, "'")
+    .replace(/[־‐‑]/g, '-');
+};
+
 export const formatDurationStats = (sec) => {
   if (!sec) return '0m';
   const h = Math.floor(sec / 3600);
@@ -92,10 +102,8 @@ export function mapSession(s) {
 
 export function buildCityIndex(sequences, cities) {
   if (!cities) return [];
-  const s = new Set();
-  sequences.filter(seq => seq.type === 'PREEMPTIVE_SEQUENCE')
-           .forEach(seq => seq.realAlarmCities.forEach(id => s.add(String(id))));
-  return Object.values(cities).filter(c => s.has(String(c.id)) && c.lat && c.lng);
+  // User feedback: allow searching for all cities in cities.json
+  return Object.values(cities).filter(c => c.lat && c.lng);
 }
 
 export function computeCorrelations(targetId, sequences) {

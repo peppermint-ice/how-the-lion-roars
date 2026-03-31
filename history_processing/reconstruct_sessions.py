@@ -3,11 +3,20 @@ import json
 import os
 import datetime
 
+def normalize_name(s):
+    if not isinstance(s, str): return s
+    # Standardize ALL quotes, whitespace, and hyphens to a single quote (') for search/mapping compatibility
+    s = s.strip().lower()
+    for q in ["’", "‘", "׳", "”", "“", "״", '"', "''"]:
+        s = s.replace(q, "'")
+    return s.replace('־', '-').replace('‐', '-').replace('‑', '-')
+
 def load_city_map(path='cities.json'):
     with open(path, 'r', encoding='utf-8') as f:
         data = json.load(f)
     cities_dict = data.get('cities', {})
-    name_to_id = {name: str(info['id']) for name, info in cities_dict.items()}
+    # Use normalized names as keys to bridge formatting differences
+    name_to_id = {normalize_name(name): str(info['id']) for name, info in cities_dict.items()}
     return name_to_id
 
 def reconstruct_sessions():
@@ -24,10 +33,18 @@ def reconstruct_sessions():
         df['time'] = pd.to_datetime(df['time'], errors='coerce')
         df.dropna(subset=['time'], inplace=True)
     
-    # Map cities to IDs (Vectorized)
+    # Map cities to IDs (Vectorized with normalization)
     print("Mapping city IDs...")
     for df in [alerts, warnings, ends]:
-        df['city_id'] = df['city'].map(name_to_id)
+        # Apply same normalization to CSV city names
+        df['city_normalized'] = df['city'].apply(normalize_name)
+        df['city_id'] = df['city_normalized'].map(name_to_id)
+        
+        # Log missed mappings (avoiding direct print of Hebrew names to prevent console encoding errors)
+        missed = df[df['city_id'].isna()]['city'].unique()
+        if len(missed) > 0:
+            print(f"Warning: {len(missed)} cities could not be mapped.")
+            
         df.dropna(subset=['city_id'], inplace=True)
 
     # 2. Aggregating by Notification ID
@@ -164,8 +181,14 @@ def reconstruct_sessions():
 
     # 4. Save Output
     output_path = os.path.join('history_processing', 'shelter_sessions.json')
+    public_path = os.path.join('frontend', 'public', 'shelter_sessions.json')
+    
     print(f"Saving {len(sessions)} sessions to {output_path}...")
     with open(output_path, 'w', encoding='utf-8') as f:
+        json.dump(sessions, f, indent=2, ensure_ascii=False)
+        
+    print(f"Syncing to {public_path}...")
+    with open(public_path, 'w', encoding='utf-8') as f:
         json.dump(sessions, f, indent=2, ensure_ascii=False)
     
     print("Done.")

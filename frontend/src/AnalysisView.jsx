@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { MapContainer, TileLayer, CircleMarker, Popup, Polygon, useMap } from 'react-leaflet';
-import { scoreColor, buildCityIndex, computeCorrelations } from './utils.js';
+import { scoreColor, buildCityIndex, computeCorrelations, normalizeSearchString } from './utils.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const DEFAULT_CUTOFF = 0.10;  // 10% default threshold
@@ -37,15 +37,15 @@ export default function AnalysisView({ sequences, cities, initialCity, onBack,
   // All cities that appear in at least one actual alarm (to restrict search)
   const alertedCities = useMemo(() => buildCityIndex(sequences, cities), [sequences, cities]);
 
-  // Autocomplete filter (EN › RU › HE)
+  // Autocomplete filter using normalization helper
   const filtered = useMemo(() => {
     if (!query.trim()) return alertedCities.slice(0, 60);
-    const q = query.trim().toLowerCase();
+    const q = normalizeSearchString(query);
     return alertedCities.filter(c =>
-      (c.en && c.en.toLowerCase().includes(q)) ||
-      (c.ru && c.ru.toLowerCase().includes(q)) ||
-      (c.he && c.he.includes(query.trim())) ||
-      (c.ar && c.ar.includes(query.trim()))
+      normalizeSearchString(c.en).includes(q) ||
+      normalizeSearchString(c.ru).includes(q) ||
+      normalizeSearchString(c.he).includes(q) ||
+      normalizeSearchString(c.ar).includes(q)
     ).slice(0, 60);
   }, [query, alertedCities]);
 
@@ -221,6 +221,24 @@ export default function AnalysisView({ sequences, cities, initialCity, onBack,
           </div>
         )}
 
+        {targetCity && hitCount === 0 && earlyAlarmCount === 0 && (
+          <div className="analysis-no-data" style={{ 
+            marginTop: '1.5rem', 
+            padding: '1.5rem', 
+            background: 'rgba(255,255,255,0.03)', 
+            borderRadius: '12px',
+            textAlign: 'center',
+            border: '1px dashed rgba(255,255,255,0.1)'
+          }}>
+            <p style={{ color: 'var(--muted)', fontSize: '0.9rem', marginBottom: '1rem' }}>
+              No alert or warning history found for <strong>{targetCity.en || targetCity.he}</strong>.
+            </p>
+            <button className="clear-all-btn" onClick={() => { setTargetCity(null); setQuery(''); }}>
+              Select another city
+            </button>
+          </div>
+        )}
+
         {!targetCity && (
           <div className="analysis-placeholder" style={{ marginTop: '2rem', textAlign: 'center' }}>
             Select a city using the map or the search bar
@@ -283,7 +301,7 @@ export default function AnalysisView({ sequences, cities, initialCity, onBack,
           <MapFitter markers={markers} />
         </MapContainer>
 
-        {targetCity && (
+        {targetCity && (hitCount > 0 || earlyAlarmCount > 0) && (
           <div className="analysis-info-group">
             <div className="target-info">
               <div className="target-name">
