@@ -89,6 +89,17 @@ export function computeMarkers(seq, cities) {
 }
 
 export function mapSession(s) {
+  const categories = new Set();
+  if (s.attacks) {
+    s.attacks.forEach(a => {
+      if (a.category) categories.add(Number(a.category));
+    });
+  }
+  // Fallback if no attacks list but a relevant start type
+  if (categories.size === 0 && (s.start_type === 1 || s.start_type === 2)) {
+    categories.add(s.start_type);
+  }
+
   return {
     ...s,
     id: s.session_id,
@@ -96,7 +107,8 @@ export function mapSession(s) {
     type: s.start_type === 14 ? 'PREEMPTIVE_SEQUENCE' : 'STANDALONE_ALARM',
     preAlarmCities: (s.warned_city_ids || []).map(String),
     realAlarmCities: (s.alerted_city_ids || []).map(String),
-    allAffectedCities: (s.affected_city_ids || []).map(String)
+    allAffectedCities: (s.affected_city_ids || []).map(String),
+    categories: Array.from(categories)
   };
 }
 

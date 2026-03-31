@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { MapContainer, TileLayer, Polygon, Popup, useMap } from 'react-leaflet';
-import { AlertCircle, BarChart2, LayoutDashboard, Info, Menu, X } from 'lucide-react';
+import { AlertCircle, BarChart2, LayoutDashboard, Info, Menu, X, Plane, Rocket } from 'lucide-react';
 import AnalysisView from './AnalysisView.jsx';
 import StatsView from './StatsView.jsx';
 import { formatDuration, formatLeadTime, computeMarkers, mapSession, normalizeSearchString } from './utils.js';
@@ -57,6 +57,8 @@ export default function App() {
   const [showCityDropdown, setShowCityDropdown] = useState(false);
   const [dateFrom, setDateFrom]         = useState('');
   const [dateTo, setDateTo]             = useState('');
+  const [filterMissiles, setFilterMissiles] = useState(true);
+  const [filterDrones, setFilterDrones]     = useState(true);
 
   // --- Shared polygon state ---
   const [polygons, setPolygons]       = useState(null);
@@ -120,6 +122,14 @@ export default function App() {
   const filteredSequences = useMemo(() => {
     return sequences.filter(s => {
       if (iranOnly && s.origin !== 'Iran') return false;
+      
+      const cats = s.categories || [];
+      if (cats.length > 0) {
+        const canShowMissile = filterMissiles && cats.includes(1);
+        const canShowDrone = filterDrones && cats.includes(2);
+        if (!canShowMissile && !canShowDrone) return false;
+      }
+
       if (cityFilter) {
         const strId = String(cityFilter.id);
         const inPre = s.preAlarmCities.includes(strId);
@@ -131,7 +141,7 @@ export default function App() {
       if (dateTo && sDate > dateTo) return false;
       return true;
     });
-  }, [sequences, iranOnly, cityFilter, dateFrom, dateTo]);
+  }, [sequences, iranOnly, cityFilter, dateFrom, dateTo, filterMissiles, filterDrones]);
 
   const pagedSequences = filteredSequences.slice(0, visibleCount);
 
@@ -233,12 +243,22 @@ export default function App() {
           <div className="event-list">
             <div className="list-header">
               <h3>Alert History</h3>
-              <button
-                className={`filter-btn ${iranOnly ? 'active' : ''}`}
-                onClick={() => setIranOnly(v => !v)}
-              >
-                {iranOnly ? 'Iran only' : 'Hide Hezbollah'}
-              </button>
+              <div className="filter-group-main">
+                <button
+                  className={`filter-btn ${iranOnly ? 'active' : ''}`}
+                  onClick={() => setIranOnly(v => !v)}
+                >
+                  {iranOnly ? 'Iran only' : 'Hide Hezbollah'}
+                </button>
+                <div className="category-filters-mini">
+                  <button className={`cat-filter-btn ${filterMissiles ? 'active' : ''}`} onClick={() => setFilterMissiles(!filterMissiles)}>
+                    <Rocket size={14} />
+                  </button>
+                  <button className={`cat-filter-btn ${filterDrones ? 'active' : ''}`} onClick={() => setFilterDrones(!filterDrones)}>
+                    <Plane size={14} />
+                  </button>
+                </div>
+              </div>
             </div>
 
             <div className="filter-controls">
@@ -308,6 +328,10 @@ export default function App() {
                     </div>
                     <div className="event-type">
                       {seq.origin === 'Lebanon' ? 'Hezbollah' : (seq.origin || (seq.type === 'PREEMPTIVE_SEQUENCE' ? 'Iran' : 'Hezbollah'))}
+                      <span className="attack-icons">
+                        {seq.categories?.includes(2) && <Plane size={14} className="attack-icon plane" />}
+                        {seq.categories?.includes(1) && <Rocket size={14} className="attack-icon missile" />}
+                      </span>
                     </div>
                     <div className="event-counts">
                       {seq.preAlarmCities.length > 0 && <span className="tag warned">{seq.preAlarmCities.length} warned</span>}
@@ -323,6 +347,9 @@ export default function App() {
                             onClick={(e) => { e.stopPropagation(); setActiveWave(activeWave === w ? null : w); }}
                           >
                             <span className="wave-time">{new Date(w.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            <span className="wave-type-icon">
+                              {Number(w.category) === 2 ? <Plane size={12} /> : <Rocket size={12} />}
+                            </span>
                             <span className="wave-count">{w.city_ids.length} cities</span>
                           </div>
                         ))}
@@ -393,7 +420,13 @@ export default function App() {
 
           {selectedSeq && (
             <div className="info-overlay">
-              <div className="origin-badge">Origin: {selectedId === '194' || selectedId === '196' ? 'Iran State' : selectedSeq.origin}</div>
+              <div className="origin-badge">
+                Origin: {selectedId === '194' || selectedId === '196' ? 'Iran State' : selectedSeq.origin}
+                <span className="attack-icons">
+                  {selectedSeq.categories?.includes(2) && <Plane size={14} className="attack-icon plane" />}
+                  {selectedSeq.categories?.includes(1) && <Rocket size={14} className="attack-icon missile" />}
+                </span>
+              </div>
               <p className="overlay-time">{new Date(selectedSeq.startTime).toLocaleString('en-GB')}</p>
               
               <div className="sequence-summary">

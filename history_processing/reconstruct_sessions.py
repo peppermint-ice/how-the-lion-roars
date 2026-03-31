@@ -111,7 +111,8 @@ def reconstruct_sessions():
             if warned_c_set & arow['affected_city_ids']:
                 attacks.append({
                     "time": arow['start_time'].strftime('%Y-%m-%d %H:%M:%S'),
-                    "city_ids": list(arow['affected_city_ids'])
+                    "city_ids": list(arow['affected_city_ids']),
+                    "category": int(arow['category'])
                 })
                 alerted_c_set |= arow['affected_city_ids']
                 absorbed_alert_ids.add(str(aid))
@@ -169,7 +170,8 @@ def reconstruct_sessions():
             "attack_times": [t_start.strftime('%Y-%m-%d %H:%M:%S')],
             "attacks": [{
                 "time": t_start.strftime('%Y-%m-%d %H:%M:%S'),
-                "city_ids": list(alerted_c_set)
+                "city_ids": list(alerted_c_set),
+                "category": int(row['category'])
             }],
             "end_time": t_end.strftime('%Y-%m-%d %H:%M:%S'),
             "duration_sec": int((t_end - t_start).total_seconds()),

@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { Plane, Rocket } from 'lucide-react';
 import { MapContainer, TileLayer, Polygon, Popup } from 'react-leaflet';
 import { formatDurationStats, heatColor, effColor } from './utils.js';
 
@@ -97,6 +98,8 @@ function RankList({ items, getValue, getLabel, maxVal }) {
 export default function StatsView({ sequences, cities, polygons }) {
   const [topFilter, setTopFilter] = useState('iran');
   const [topView, setTopView]     = useState('list');
+  const [showMissiles, setShowMissiles] = useState(true);
+  const [showDrones, setShowDrones]     = useState(true);
   const [warnView, setWarnView]   = useState('list');
   const [effView, setEffView]     = useState('chart');
   const [shelterView, setShelterView] = useState('list');
@@ -113,43 +116,58 @@ export default function StatsView({ sequences, cities, polygons }) {
   const iranMap = useMemo(() => {
     const m = {};
     preSeqs.forEach(seq => {
-      const cityList = seq.attacks ? seq.attacks.flatMap(a => a.city_ids) : seq.realAlarmCities;
-      cityList.forEach(id => {
-        const sid = String(id);
-        if (!m[sid] && cities[sid]) m[sid] = { ...cities[sid], count: 0 };
-        if (m[sid]) m[sid].count++;
+      const attacks = seq.attacks || [];
+      attacks.forEach(a => {
+        const cat = Number(a.category);
+        if (cat === 1 && !showMissiles) return;
+        if (cat === 2 && !showDrones) return;
+        a.city_ids.forEach(id => {
+          const sid = String(id);
+          if (!m[sid] && cities[sid]) m[sid] = { ...cities[sid], count: 0 };
+          if (m[sid]) m[sid].count++;
+        });
       });
     });
     return m;
-  }, [preSeqs, cities]);
+  }, [preSeqs, cities, showMissiles, showDrones]);
 
   // Lebanon / standalone real-alarm counts
   const lebaMap = useMemo(() => {
     const m = {};
     standSeqs.forEach(seq => {
-      const cityList = seq.attacks ? seq.attacks.flatMap(a => a.city_ids) : seq.realAlarmCities;
-      cityList.forEach(id => {
-        const sid = String(id);
-        if (!m[sid] && cities[sid]) m[sid] = { ...cities[sid], count: 0 };
-        if (m[sid]) m[sid].count++;
+      const attacks = seq.attacks || [];
+      attacks.forEach(a => {
+        const cat = Number(a.category);
+        if (cat === 1 && !showMissiles) return;
+        if (cat === 2 && !showDrones) return;
+        a.city_ids.forEach(id => {
+          const sid = String(id);
+          if (!m[sid] && cities[sid]) m[sid] = { ...cities[sid], count: 0 };
+          if (m[sid]) m[sid].count++;
+        });
       });
     });
     return m;
-  }, [standSeqs, cities]);
+  }, [standSeqs, cities, showMissiles, showDrones]);
 
   // All combined
   const allMap = useMemo(() => {
     const m = {};
     [...preSeqs, ...standSeqs].forEach(seq => {
-      const cityList = seq.attacks ? seq.attacks.flatMap(a => a.city_ids) : seq.realAlarmCities;
-      cityList.forEach(id => {
-        const sid = String(id);
-        if (!m[sid] && cities[sid]) m[sid] = { ...cities[sid], count: 0 };
-        if (m[sid]) m[sid].count++;
+      const attacks = seq.attacks || [];
+      attacks.forEach(a => {
+        const cat = Number(a.category);
+        if (cat === 1 && !showMissiles) return;
+        if (cat === 2 && !showDrones) return;
+        a.city_ids.forEach(id => {
+          const sid = String(id);
+          if (!m[sid] && cities[sid]) m[sid] = { ...cities[sid], count: 0 };
+          if (m[sid]) m[sid].count++;
+        });
       });
     });
     return m;
-  }, [preSeqs, standSeqs, cities]);
+  }, [preSeqs, standSeqs, cities, showMissiles, showDrones]);
 
   // Early warnings (Iran only)
   const warningMap = useMemo(() => {
@@ -281,11 +299,29 @@ export default function StatsView({ sequences, cities, polygons }) {
       <div className="stats-section">
         <div className="stats-section-header">
           <h2 className="stats-title">Top Attacked Cities</h2>
-          <div className="mode-toggle-btns" style={{ width: 'auto' }}>
-            {[['iran','Iran'],['lebanon','Lebanon'],['all','All']].map(([k,lbl]) => (
-              <button key={k} className={`mode-btn ${topFilter===k?'active':''}`}
-                onClick={() => setTopFilter(k)}>{lbl}</button>
-            ))}
+          <div className="stats-filters-row">
+            <div className="mode-toggle-btns" style={{ width: 'auto' }}>
+              {[['iran','Iran'],['lebanon','Lebanon'],['all','All']].map(([k,lbl]) => (
+                <button key={k} className={`mode-btn ${topFilter===k?'active':''}`}
+                  onClick={() => setTopFilter(k)}>{lbl}</button>
+              ))}
+            </div>
+            <div className="category-toggles">
+              <button 
+                className={`category-btn ${showMissiles ? 'active' : ''}`}
+                onClick={() => setShowMissiles(!showMissiles)}
+                title="Missiles"
+              >
+                <Rocket size={16} />
+              </button>
+              <button 
+                className={`category-btn ${showDrones ? 'active' : ''}`}
+                onClick={() => setShowDrones(!showDrones)}
+                title="Drones"
+              >
+                <Plane size={16} />
+              </button>
+            </div>
           </div>
           <ViewToggle view={topView} onChange={setTopView} />
         </div>
