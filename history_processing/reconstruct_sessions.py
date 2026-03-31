@@ -9,7 +9,12 @@ def normalize_name(s):
     s = s.strip().lower()
     for q in ["’", "‘", "׳", "”", "“", "״", '"', "''"]:
         s = s.replace(q, "'")
-    return s.replace('־', '-').replace('‐', '-').replace('‑', '-')
+    s = s.replace('־', '-').replace('‐', '-').replace('‑', '-')
+    # Manual fix for truncated Ashdod string in CSV data (missing final 'yod')
+    if s == "אשדוד -יא,יב,טו,יז,מרינה,סיט":
+        s = "אשדוד -יא,יב,טו,יז,מרינה,סיטי"
+    return s
+    
 
 def load_city_map(path='cities.json'):
     with open(path, 'r', encoding='utf-8') as f:
@@ -44,6 +49,8 @@ def reconstruct_sessions():
         missed = df[df['city_id'].isna()]['city'].unique()
         if len(missed) > 0:
             print(f"Warning: {len(missed)} cities could not be mapped.")
+            for city in missed:
+                print(city)
             
         df.dropna(subset=['city_id'], inplace=True)
 
