@@ -367,7 +367,7 @@ export default function StatsView({ sequences, cities, polygons, allStats }) {
                 <RankList
                   items={showAllWarn ? warningRanked : warningRanked.slice(0, 20)}
                   getValue={c => c.warnCount}
-                  getLabel={c => `${c.warnCount} warned · ${c.hitCount} hit`}
+                  getLabel={c => `${c.warnCount}×`}
                   maxVal={warnMax}
                 />
                 {!showAllWarn && warningRanked.length > 20 && (

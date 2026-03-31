@@ -350,6 +350,12 @@ export default function App() {
                         {seq.categories?.includes(2) && <Plane size={14} className="attack-icon plane" />}
                         {seq.categories?.includes(1) && <Rocket size={14} className="attack-icon missile" />}
                       </span>
+                      {cityFilter && (
+                        <span className="city-status-inline">
+                          <span className={`dot ${seq.realAlarmCities.includes(String(cityFilter.id)) ? 'alerted-dot' : 'warned-dot'}`} />
+                          {cityFilter.en || cityFilter.he}
+                        </span>
+                      )}
                     </div>
                     <div className="event-counts">
                       {seq.preAlarmCities.length > 0 && <span className="tag warned">{seq.preAlarmCities.length} warned</span>}

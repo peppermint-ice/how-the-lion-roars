@@ -202,7 +202,17 @@ main { flex: 1; display: flex; overflow: hidden; }
 }
 .event-date { font-size: .72rem; color: var(--muted); }
 .event-time { font-size: .72rem; color: var(--text); }
-.event-type { font-size: .78rem; margin-bottom: .25rem; }
+.event-type { 
+  display: flex; 
+  align-items: center; 
+  font-size: .78rem; 
+  margin-bottom: .25rem; 
+}
+.attack-icons {
+  display: inline-flex;
+  gap: 0.25rem;
+  margin-left: 0.5rem;
+}
 
 .event-counts { display: flex; gap: .35rem; flex-wrap: wrap; margin-top: .35rem; }
 .tag {
@@ -212,6 +222,16 @@ main { flex: 1; display: flex; overflow: hidden; }
 }
 .tag.warned  { background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.2); }
 .tag.alerted { background: rgba(239, 68, 68, 0.1);  color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); }
+
+.city-status-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: auto;
+  font-size: 0.68rem;
+  color: var(--muted);
+  font-weight: 500;
+}
 
 .event-type-row {
   display: flex;
