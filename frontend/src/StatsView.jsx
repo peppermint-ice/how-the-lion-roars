@@ -108,7 +108,7 @@ function RankList({ items, getValue, getLabel, maxVal }) {
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export default function StatsView({ sequences, cities, polygons }) {
+export default function StatsView({ sequences, cities, polygons, allStats }) {
   const [topFilter, setTopFilter] = useState('iran');
   const [topView, setTopView]     = useState('list');
   const [showMissiles, setShowMissiles] = useState(true);
@@ -122,84 +122,59 @@ export default function StatsView({ sequences, cities, polygons }) {
   const [showAllEff, setShowAllEff]   = useState(false);
   const [showAllShelter, setShowAllShelter] = useState(false);
 
-  const preSeqs   = useMemo(() => sequences.filter(s => s.type === 'PREEMPTIVE_SEQUENCE'), [sequences]);
-  const standSeqs = useMemo(() => sequences.filter(s => s.type === 'STANDALONE_ALARM'),    [sequences]);
 
-  // Iran real-alarm counts
+  // Real-alarm counts from pre-calculated stats
   const iranMap = useMemo(() => {
+    if (!allStats) return {};
     const m = {};
-    preSeqs.forEach(seq => {
-      const attacks = seq.attacks || [];
-      attacks.forEach(a => {
-        const cat = Number(a.category);
-        if (cat === 1 && !showMissiles) return;
-        if (cat === 2 && !showDrones) return;
-        a.city_ids.forEach(id => {
-          const sid = String(id);
-          if (!m[sid] && cities[sid]) m[sid] = { ...cities[sid], count: 0 };
-          if (m[sid]) m[sid].count++;
-        });
-      });
+    Object.entries(allStats).forEach(([id, st]) => {
+      let count = 0;
+      if (showMissiles) count += st.iran_m;
+      if (showDrones)   count += st.iran_d;
+      if (count > 0 && cities[id]) m[id] = { ...cities[id], count };
     });
     return m;
-  }, [preSeqs, cities, showMissiles, showDrones]);
+  }, [allStats, cities, showMissiles, showDrones]);
 
-  // Lebanon / standalone real-alarm counts
   const lebaMap = useMemo(() => {
+    if (!allStats) return {};
     const m = {};
-    standSeqs.forEach(seq => {
-      const attacks = seq.attacks || [];
-      attacks.forEach(a => {
-        const cat = Number(a.category);
-        if (cat === 1 && !showMissiles) return;
-        if (cat === 2 && !showDrones) return;
-        a.city_ids.forEach(id => {
-          const sid = String(id);
-          if (!m[sid] && cities[sid]) m[sid] = { ...cities[sid], count: 0 };
-          if (m[sid]) m[sid].count++;
-        });
-      });
+    Object.entries(allStats).forEach(([id, st]) => {
+      let count = 0;
+      if (showMissiles) count += st.leba_m;
+      if (showDrones)   count += st.leba_d;
+      if (count > 0 && cities[id]) m[id] = { ...cities[id], count };
     });
     return m;
-  }, [standSeqs, cities, showMissiles, showDrones]);
+  }, [allStats, cities, showMissiles, showDrones]);
 
-  // All combined
   const allMap = useMemo(() => {
+    if (!allStats) return {};
     const m = {};
-    [...preSeqs, ...standSeqs].forEach(seq => {
-      const attacks = seq.attacks || [];
-      attacks.forEach(a => {
-        const cat = Number(a.category);
-        if (cat === 1 && !showMissiles) return;
-        if (cat === 2 && !showDrones) return;
-        a.city_ids.forEach(id => {
-          const sid = String(id);
-          if (!m[sid] && cities[sid]) m[sid] = { ...cities[sid], count: 0 };
-          if (m[sid]) m[sid].count++;
-        });
-      });
+    Object.entries(allStats).forEach(([id, st]) => {
+      let count = 0;
+      if (showMissiles) count += (st.iran_m + st.leba_m + st.other_m);
+      if (showDrones)   count += (st.iran_d + st.leba_d + st.other_d);
+      if (count > 0 && cities[id]) m[id] = { ...cities[id], count };
     });
     return m;
-  }, [preSeqs, standSeqs, cities, showMissiles, showDrones]);
+  }, [allStats, cities, showMissiles, showDrones]);
 
-  // Early warnings (Iran only)
   const warningMap = useMemo(() => {
+    if (!allStats) return {};
     const m = {};
-    preSeqs.forEach(seq => {
-      const hitIds = new Set(seq.realAlarmCities);
-      seq.preAlarmCities.forEach(id => {
-        const sid = String(id);
-        if (!m[sid] && cities[sid]) m[sid] = { ...cities[sid], warnCount: 0, hitCount: 0, totalHitCount: 0 };
-        if (m[sid]) {
-          m[sid].warnCount++;
-          if (hitIds.has(sid)) m[sid].hitCount++;
-          const waveCount = seq.attacks ? seq.attacks.filter(a => new Set(a.city_ids.map(String)).has(sid)).length : (hitIds.has(sid) ? 1 : 0);
-          m[sid].totalHitCount += waveCount;
-        }
-      });
+    Object.entries(allStats).forEach(([id, st]) => {
+      if (st.warn > 0 && cities[id]) {
+        m[id] = { 
+          ...cities[id], 
+          warnCount: st.warn, 
+          hitCount: st.hit, 
+          totalHitCount: st.total_hit 
+        };
+      }
     });
     return m;
-  }, [preSeqs, cities]);
+  }, [allStats, cities]);
 
   // Efficiency: all cities with warnings
   const effData = useMemo(() =>
@@ -274,18 +249,15 @@ export default function StatsView({ sequences, cities, polygons }) {
 
   // Total shelter time aggregation
   const shelterMap = useMemo(() => {
+    if (!allStats) return {};
     const m = {};
-    sequences.forEach(seq => {
-      const duration = seq.duration_sec || 0;
-      if (duration <= 0) return;
-      (seq.allAffectedCities || []).forEach(id => {
-        const sid = String(id);
-        if (!m[sid] && cities[sid]) m[sid] = { ...cities[sid], totalDuration: 0 };
-        if (m[sid]) m[sid].totalDuration += duration;
-      });
+    Object.entries(allStats).forEach(([id, st]) => {
+      if (st.dur > 0 && cities[id]) {
+        m[id] = { ...cities[id], totalDuration: st.dur };
+      }
     });
     return m;
-  }, [sequences, cities]);
+  }, [allStats, cities]);
 
   const shelterRanked = useMemo(() => {
     const list = Object.values(shelterMap).sort((a,b) => b.totalDuration - a.totalDuration);

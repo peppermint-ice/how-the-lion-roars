@@ -58,6 +58,7 @@ export default function App() {
   const [dateFrom, setDateFrom]         = useState('');
   const [dateTo, setDateTo]             = useState('');
   const [filterDrones, setFilterDrones]     = useState(true);
+  const [allStats, setAllStats]             = useState(null);
 
   // --- Shared polygon state ---
   const [polygons, setPolygons]       = useState(null);
@@ -88,8 +89,9 @@ export default function App() {
   useEffect(() => {
     Promise.all([
       fetch('/shelter_sessions.json').then(r => { if (!r.ok) throw new Error(`Sessions: ${r.status}`); return r.json(); }),
-      fetch('/cities.json').then(r => { if (!r.ok) throw new Error(`Cities: ${r.status}`); return r.json(); })
-    ]).then(([sessions, citiesData]) => {
+      fetch('/cities.json').then(r => { if (!r.ok) throw new Error(`Cities: ${r.status}`); return r.json(); }),
+      fetch('/all_stats.csv').then(r => { if (!r.ok) return ""; return r.text(); })
+    ]).then(([sessions, citiesData, statsCsv]) => {
       // Map cities.json structure to flattened dict
       const citiesMap = {};
       if (citiesData.cities) {
@@ -101,8 +103,26 @@ export default function App() {
       const mapped = sessions.map(mapSession);
 
       const sorted = [...mapped].sort((a, b) => new Date(b.startTime) - new Date(a.startTime));
+      
+      const statsMap = {};
+      if (statsCsv) {
+        const lines = statsCsv.trim().split('\n').slice(1);
+        lines.forEach(l => {
+          const p = l.split(',');
+          if (p.length < 11) return;
+          statsMap[p[0]] = {
+            iran_m: parseInt(p[1]), iran_d: parseInt(p[2]),
+            leba_m: parseInt(p[3]), leba_d: parseInt(p[4]),
+            other_m: parseInt(p[5]), other_d: parseInt(p[6]),
+            warn: parseInt(p[7]), hit: parseInt(p[8]),
+            total_hit: parseInt(p[9]), dur: parseInt(p[10])
+          };
+        });
+      }
+
       setCities(citiesMap);
       setSequences(sorted);
+      setAllStats(statsMap);
       if (sorted.length > 0) setSelectedId(sorted[0].id);
       setLoading(false);
     }).catch(err => {
@@ -197,7 +217,7 @@ export default function App() {
       </header>
 
       {activeView === 'stats' ? (
-        <StatsView sequences={sequences} cities={cities} polygons={polygons} />
+        <StatsView sequences={sequences} cities={cities} polygons={polygons} allStats={allStats} />
       ) : activeView === 'analysis' ? (
         <AnalysisView
           sequences={sequences}

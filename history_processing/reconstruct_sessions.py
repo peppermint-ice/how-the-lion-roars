@@ -181,10 +181,61 @@ def reconstruct_sessions():
     # Sort final sessions by start_time
     sessions.sort(key=lambda x: x['start_time'])
 
+    # 5. Calculate Statistics (Summary)
+    print("Calculating statistics summary...")
+    city_stats = {}
+    
+    for s in sessions:
+        dur = s.get('duration_sec', 0)
+        origin = s.get('origin', 'other')
+        is_pre = s.get('start_type') == 14
+        
+        # Affected cities (total duration)
+        all_aff = s.get('affected_city_ids', [])
+        for cid in all_aff:
+            sid = str(cid)
+            if sid not in city_stats:
+                city_stats[sid] = {'iran_m': 0, 'iran_d': 0, 'leba_m': 0, 'leba_d': 0, 'other_m': 0, 'other_d': 0, 'warn': 0, 'hit': 0, 'total_hit': 0, 'dur': 0}
+            city_stats[sid]['dur'] += dur
+            
+        # Warning vs Hit (Iran only/Preemptive)
+        if is_pre:
+            warned = s.get('warned_city_ids', [])
+            alerted = set(s.get('alerted_city_ids', []))
+            for cid in warned:
+                sid = str(cid)
+                if sid not in city_stats:
+                    city_stats[sid] = {'iran_m': 0, 'iran_d': 0, 'leba_m': 0, 'leba_d': 0, 'other_m': 0, 'other_d': 0, 'warn': 0, 'hit': 0, 'total_hit': 0, 'dur': 0}
+                city_stats[sid]['warn'] += 1
+                if sid in alerted:
+                    city_stats[sid]['hit'] += 1
+                    
+        # Attack counts by category and origin
+        attacks = s.get('attacks', [])
+        for a in attacks:
+            cat = a.get('category')
+            a_city_ids = a.get('city_ids', [])
+            for cid in a_city_ids:
+                sid = str(cid)
+                if sid not in city_stats:
+                    city_stats[sid] = {'iran_m': 0, 'iran_d': 0, 'leba_m': 0, 'leba_d': 0, 'other_m': 0, 'other_d': 0, 'warn': 0, 'hit': 0, 'total_hit': 0, 'dur': 0}
+                
+                if is_pre:
+                    city_stats[sid]['total_hit'] += 1
+                    if cat == 1: city_stats[sid]['iran_m'] += 1
+                    elif cat == 2: city_stats[sid]['iran_d'] += 1
+                elif origin == 'Lebanon' or s.get('start_type') != 14: # Standalone treats as Lebanon for stats
+                    if cat == 1: city_stats[sid]['leba_m'] += 1
+                    elif cat == 2: city_stats[sid]['leba_d'] += 1
+                else: # Other
+                    if cat == 1: city_stats[sid]['other_m'] += 1
+                    elif cat == 2: city_stats[sid]['other_d'] += 1
+
     # 4. Save Output
     output_path = os.path.join('history_processing', 'shelter_sessions.json')
     public_path = os.path.join('frontend', 'public', 'shelter_sessions.json')
-    
+    stats_csv_path = os.path.join('frontend', 'public', 'all_stats.csv')
+
     print(f"Saving {len(sessions)} sessions to {output_path}...")
     with open(output_path, 'w', encoding='utf-8') as f:
         json.dump(sessions, f, indent=2, ensure_ascii=False)
@@ -192,6 +243,14 @@ def reconstruct_sessions():
     print(f"Syncing to {public_path}...")
     with open(public_path, 'w', encoding='utf-8') as f:
         json.dump(sessions, f, indent=2, ensure_ascii=False)
+
+    print(f"Saving statistics to {stats_csv_path}...")
+    import csv
+    with open(stats_csv_path, 'w', encoding='utf-8', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(['city_id', 'iran_m', 'iran_d', 'leba_m', 'leba_d', 'other_m', 'other_d', 'warn', 'hit', 'total_hit', 'dur'])
+        for cid, st in city_stats.items():
+            writer.writerow([cid, st['iran_m'], st['iran_d'], st['leba_m'], st['leba_d'], st['other_m'], st['other_d'], st['warn'], st['hit'], st['total_hit'], st['dur']])
     
     print("Done.")
 
