@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, CircleMarker, Popup, Polygon, useMap } from 'r
 import { scoreColor, buildCityIndex, computeCorrelations, normalizeSearchString } from './utils.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-const DEFAULT_CUTOFF = 0.10;  // 10% default threshold
+const DEFAULT_CUTOFF = 0.15;  // 15% default threshold
 
 // ── Fit map to markers ────────────────────────────────────────────────────────
 function MapFitter({ markers }) {
@@ -68,7 +68,7 @@ export default function AnalysisView({ sequences, cities, initialCity, onBack,
 
   // All significant correlations (pass 10% filter)
   const significant = useMemo(() => {
-    const minDenominator = Math.max(3, hitCount * 0.10);
+    const minDenominator = Math.max(3, hitCount * 0.15);
     const results = {};
     Object.entries(correlations).forEach(([id, obj]) => { 
       if (obj.denominator >= minDenominator) {
@@ -172,7 +172,7 @@ export default function AnalysisView({ sequences, cities, initialCity, onBack,
         </p>
         {targetCity && (
           <p style={{ fontSize: '0.72rem', color: 'var(--muted)', marginTop: 0, marginBottom: '.5rem' }}>
-            Showing regions with {Math.max(3, Math.round(hitCount * 0.1))} or more shared warnings (≥10% of {targetCity.en || targetCity.he}'s total alarms).
+            Showing regions with {Math.max(3, Math.round(hitCount * 0.15))} or more shared warnings (≥15% of {targetCity.en || targetCity.he}'s total alarms).
           </p>
         )}
 
