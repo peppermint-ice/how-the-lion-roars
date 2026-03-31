@@ -1,6 +1,18 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Plane, Rocket } from 'lucide-react';
-import { MapContainer, TileLayer, Polygon, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Polygon, Popup, useMap } from 'react-leaflet';
+
+// --- Small helper to force map resize on mount ---
+function MapResizer() {
+  const map = useMap();
+  useEffect(() => {
+    // Calling invalidateSize twice (immediate and with delay) to be safe
+    map.invalidateSize();
+    const t = setTimeout(() => map.invalidateSize(), 150);
+    return () => clearTimeout(t);
+  }, [map]);
+  return null;
+}
 import { formatDurationStats, heatColor, effColor } from './utils.js';
 
 // ── Distribution / Histogram chart ───────────────────────────────────────────
@@ -48,8 +60,9 @@ function StatsMap({ items, keyProp, getColor, getLabel, listReference, polygons 
 
   return (
     <MapContainer center={[31.5, 34.9]} zoom={7}
-      style={{ height: '100%', width: '100%', position: 'absolute', inset: 0 }}>
+      style={{ height: '480px', width: '100%', display: 'block' }}>
       <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="" />
+      <MapResizer />
       {items.map((c, i) => {
         const poly = polygons && polygons[String(c.id)];
         if (!poly) return null;

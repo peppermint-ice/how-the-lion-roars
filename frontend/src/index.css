@@ -571,7 +571,7 @@ main { flex: 1; display: flex; overflow: hidden; }
   border: 1px solid var(--border);
   border-radius: .6rem;
   overflow: hidden;
-  height: 520px; flex-shrink: 0;
+  height: auto; flex-shrink: 0;
 }
 
 .stats-section-header {
@@ -591,6 +591,7 @@ main { flex: 1; display: flex; overflow: hidden; }
 
 .stats-body {
   display: flex; flex: 1; min-height: 0; align-items: stretch;
+  height: 480px; /* Fixed height for consistent maps across sections */
 }
 
 .stats-list-panel {
@@ -624,6 +625,7 @@ main { flex: 1; display: flex; overflow: hidden; }
 
 .stats-map-panel {
   flex: 1; position: relative; overflow: hidden;
+  min-height: 0; /* Ensure it takes available space in flex body */
 }
 
 /* Rank rows */
@@ -796,7 +798,7 @@ main { flex: 1; display: flex; overflow: hidden; }
   .sidebar {
     width: 100%;
     flex: 0 0 auto;
-    max-height: 25vh;
+    max-height: 20vh;
     min-height: 0;
     display: flex;
     flex-direction: column;
@@ -806,17 +808,19 @@ main { flex: 1; display: flex; overflow: hidden; }
   }
 
   .list-header {
-    padding: 0.5rem 0.75rem;
+    padding: 0.35rem 0.75rem;
+    margin-bottom: 0.2rem;
   }
+  .list-header h3 { display: none; }
 
   .filter-controls {
-    padding: 0.5rem;
-    gap: 0.4rem;
+    padding: 0.35rem;
+    gap: 0.25rem;
   }
 
   .date-filter-row {
-    font-size: 0.72rem;
-    gap: 0.3rem;
+    font-size: 0.68rem;
+    gap: 0.2rem;
   }
 
   .date-group label {
@@ -866,7 +870,7 @@ main { flex: 1; display: flex; overflow: hidden; }
   /* Map wrappers */
   .map-wrapper, .analysis-map-wrap {
     flex: 1;
-    min-height: 50vh;
+    min-height: 70vh;
     width: 100%;
   }
   
@@ -892,8 +896,8 @@ main { flex: 1; display: flex; overflow: hidden; }
   }
   
   .stats-section {
-    min-height: 500px;
     height: auto;
+    min-height: auto;
   }
 
   .stats-section-header {
@@ -904,18 +908,35 @@ main { flex: 1; display: flex; overflow: hidden; }
   .stats-body {
     display: flex !important;
     flex-direction: column !important;
+    height: auto !important; /* Stack vertically on mobile */
   }
   
   .stats-list-panel {
     width: 100%;
-    max-height: 250px;
+    max-height: 180px;
     border-right: none;
     border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .stats-list-panel.expanded {
+    max-height: 320px !important;
   }
 
   .stats-map-panel {
-    height: 400px;
+    height: 480px; /* SAME SIZE on all sections */
+    min-height: 480px;
+    width: 100%;
+    position: relative;
     border-radius: 0 0 0.6rem 0.6rem;
+    overflow: hidden;
+    flex-shrink: 0;
+    display: block !important; /* Force visibility */
+    background: #0f172a; /* Debug background to confirm container is there */
+  }
+
+  .stats-map-panel .leaflet-container {
+    background: #0f172a !important;
   }
 
   /* Typography & Spacing */
@@ -1129,14 +1150,22 @@ main { flex: 1; display: flex; overflow: hidden; }
   }
   .stats-section-header {
     height: auto !important;
-    padding: 0.75rem !important;
+    padding: 0.4rem 0.75rem !important;
+    gap: 0.4rem !important;
   }
+  .stats-section-header h2 { font-size: 0.95rem; margin-bottom: 0.2rem; }
   .category-toggles {
     width: 100%;
   }
   .category-btn {
     flex: 1;
     justify-content: center;
+    padding: 0.35rem 0 !important;
+    width: auto !important;
+  }
+  .mode-btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.65rem;
   }
 }
 
